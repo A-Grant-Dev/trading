@@ -2,7 +2,7 @@ import logging
 
 from django.http import JsonResponse
 
-from .services import get_crypto_sentiment
+from .services import get_crypto_sentiment, get_fear_greed_index
 
 logger = logging.getLogger(__name__)
 
@@ -45,4 +45,22 @@ def sentiment_data(request):
             "articles": [],
             "reddit_posts": [],
             "overall_sentiment": {"label": "neutral", "score": 50.0},
+        })
+
+
+def fear_greed(request):
+    """
+    AJAX endpoint returning the Crypto Fear & Greed Index.
+    Market-wide sentiment indicator from alternative.me (free, no auth).
+    """
+    try:
+        data = get_fear_greed_index()
+        return JsonResponse(data)
+    except Exception as e:
+        logger.exception("Failed to fetch Fear & Greed Index")
+        return JsonResponse({
+            "value": None,
+            "classification": "Error",
+            "previous_value": None,
+            "error": str(e),
         })

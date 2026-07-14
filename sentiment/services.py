@@ -367,6 +367,50 @@ def analyze_headline_sentiment(headlines):
     }
 
 
+# ── Fear & Greed Index ───────────────────────────────────────────
+
+
+def get_fear_greed_index():
+    """
+    Fetch the Crypto Fear & Greed Index from alternative.me (free, no API key).
+    Returns current value, classification, and previous day for comparison.
+    """
+    cache_key = "fear_greed"
+    cached = get_cached(cache_key, ttl=CACHE_TTL_SECONDS)
+    if cached:
+        return cached
+
+    try:
+        url = "https://api.alternative.me/fng/?limit=2"
+        resp = requests.get(url, timeout=REQUEST_TIMEOUT)
+        if resp.status_code != 200:
+            logger.warning(f"Fear & Greed API returned {resp.status_code}")
+            return {"value": None, "classification": "Unknown", "previous_value": None}
+
+        data = resp.json()
+        items = data.get("data", [])
+        if not items:
+            return {"value": None, "classification": "Unknown", "previous_value": None}
+
+        current = items[0]
+        previous = items[1] if len(items) > 1 else None
+
+        result = {
+            "value": int(current.get("value", 50)),
+            "classification": current.get("value_classification", "Neutral"),
+            "previous_value": int(previous.get("value", 50)) if previous else None,
+            "timestamp": current.get("timestamp"),
+            "time_until_update": current.get("time_until_update"),
+        }
+
+        set_cache(cache_key, result)
+        return result
+
+    except Exception as e:
+        logger.exception(f"Failed to fetch Fear & Greed Index: {e}")
+        return {"value": None, "classification": "Error", "previous_value": None}
+
+
 # ── Main Orchestrator ──────────────────────────────────────────────
 
 # Simple in-memory cache
@@ -511,6 +555,7 @@ def get_crypto_sentiment(base_asset):
         "articles": article_sentiments[:15],
         "reddit_posts": reddit_sentiments[:8],
         "hn_posts": hn_sentiments[:8],
+        "fear_greed": get_fear_greed_index(),
         "sources_used": [
             "CoinDesk RSS",
             "CoinTelegraph RSS",
@@ -518,6 +563,7 @@ def get_crypto_sentiment(base_asset):
             "Google News RSS",
             "Reddit (r/cryptocurrency RSS)",
             "Hacker News (Algolia API)",
+            "Fear & Greed Index (alternative.me)",
         ],
     }
 

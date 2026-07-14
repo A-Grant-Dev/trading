@@ -593,6 +593,147 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Fear & Greed Index Card */
+        .fear-greed-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px 28px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .fear-greed-card.loading {
+            opacity: 0.6;
+        }
+
+        .fear-greed-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .fear-greed-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .fear-greed-icon.extreme-fear { background: rgba(246, 70, 93, 0.15); }
+        .fear-greed-icon.fear { background: rgba(246, 70, 93, 0.1); }
+        .fear-greed-icon.neutral { background: rgba(132, 142, 156, 0.12); }
+        .fear-greed-icon.greed { background: rgba(14, 203, 129, 0.1); }
+        .fear-greed-icon.extreme-greed { background: rgba(14, 203, 129, 0.15); }
+
+        .fear-greed-info h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .fear-greed-value {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .fear-greed-number {
+            font-size: 32px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+
+        .fear-greed-label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .fear-greed-number.extreme-fear,
+        .fear-greed-label.extreme-fear { color: var(--accent-red); }
+        
+        .fear-greed-number.fear,
+        .fear-greed-label.fear { color: #f0a90b; }
+        
+        .fear-greed-number.neutral,
+        .fear-greed-label.neutral { color: var(--text-secondary); }
+        
+        .fear-greed-number.greed,
+        .fear-greed-label.greed { color: #45b36b; }
+        
+        .fear-greed-number.extreme-greed,
+        .fear-greed-label.extreme-greed { color: var(--accent-green); }
+
+        /* Fear & Greed Gauge Bar */
+        .fear-greed-gauge {
+            flex: 1;
+            min-width: 200px;
+            max-width: 320px;
+        }
+
+        .fear-greed-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(
+                to right,
+                var(--accent-red) 0%,
+                #f0a90b 25%,
+                var(--text-secondary) 50%,
+                #45b36b 75%,
+                var(--accent-green) 100%
+            );
+            position: relative;
+            margin-bottom: 6px;
+        }
+
+        .fear-greed-bar .indicator {
+            position: absolute;
+            top: -5px;
+            width: 18px;
+            height: 18px;
+            background: var(--text-primary);
+            border: 2px solid var(--bg-card);
+            border-radius: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 8px rgba(0,0,0,0.3);
+            transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .fear-greed-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .fear-greed-change {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .fear-greed-change.up { color: var(--accent-green); }
+        .fear-greed-change.down { color: var(--accent-red); }
+
         /* News & Sentiment Section */
         .sentiment-section {
             background: var(--bg-card);
@@ -1157,6 +1298,35 @@
                 </div>
             </div>
 
+            <!-- Fear & Greed Index (hidden until pair selected) -->
+            <div id="fearGreedSection" style="display: none;">
+                <div class="fear-greed-card loading" id="fearGreedCard">
+                    <div class="fear-greed-left">
+                        <div class="fear-greed-icon neutral" id="fearGreedIcon">📊</div>
+                        <div class="fear-greed-info">
+                            <h3>🦈 Crypto Fear & Greed Index</h3>
+                            <div class="fear-greed-value">
+                                <span class="fear-greed-number neutral" id="fearGreedNumber">—</span>
+                                <span class="fear-greed-label" id="fearGreedLabel">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="fear-greed-gauge">
+                        <div class="fear-greed-bar" id="fearGreedBar">
+                            <div class="indicator" id="fearGreedIndicator" style="left: 50%;"></div>
+                        </div>
+                        <div class="fear-greed-labels">
+                            <span>Extreme Fear</span>
+                            <span>Fear</span>
+                            <span>Neutral</span>
+                            <span>Greed</span>
+                            <span>Extreme Greed</span>
+                        </div>
+                    </div>
+                    <div class="fear-greed-change" id="fearGreedChange"></div>
+                </div>
+            </div>
+
             <!-- News & Sentiment Section (hidden until pair selected) -->
             <div id="sentimentSection" style="display: none;">
                 <div class="sentiment-section" id="sentimentSectionInner">
@@ -1241,6 +1411,7 @@
         const chartSection = document.getElementById('chartSection');
         const chartContainerEl = document.getElementById('chartContainer');
         const chartLoadingEl = document.getElementById('chartLoading');
+        const fearGreedSection = document.getElementById('fearGreedSection');
 
         // ============================================================
         // Fetch all trading pairs from Binance
@@ -1387,6 +1558,7 @@
             priceCard.style.display = 'block';
             chartSection.style.display = 'block';
             orderbookSection.style.display = 'block';
+            fearGreedSection.style.display = 'block';
 
             // Update pair name
             document.getElementById('pairName').innerHTML = `${item.baseAsset}<span class="quote-part">/${item.quoteAsset}</span>`;
@@ -1966,6 +2138,7 @@
             priceCard.style.display = 'none';
             chartSection.style.display = 'none';
             orderbookSection.style.display = 'none';
+            fearGreedSection.style.display = 'none';
             sentimentSection.style.display = 'none';
 
             wsStatus.className = 'connection-badge disconnected';
@@ -2053,6 +2226,10 @@
                     throw new Error(data.error);
                 }
 
+                // Include Fear & Greed if present in response
+                if (data.fear_greed) {
+                    renderFearGreed(data.fear_greed);
+                }
                 renderSentiment(data);
             } catch (err) {
                 console.error('Failed to fetch sentiment:', err);
@@ -2152,7 +2329,7 @@
                                 <div class="news-item-title">
                                     <a href="${post.link}" target="_blank" rel="noopener">${escapeHtml(post.title)}</a>
                                 </div>
-                                <span class="news-item-badge ${sentLabel}">${sentIcons[sentLabel]}</span>
+                                <span class="news-item-badge ${sentLabel}">${sentIcons[sentLabel]} ${sentLabel}</span>
                             </div>
                             <div class="news-item-meta">
                                 <span class="news-item-source">${isHN ? '🟠' : '🔴'} ${escapeHtml(post.source)}</span>
@@ -2191,6 +2368,93 @@
                 fetchSentiment(selectedSymbol.symbol);
             }
         });
+
+        // ============================================================
+        // Fear & Greed Index
+        // ============================================================
+        const fearGreedCard = document.getElementById('fearGreedCard');
+        const fearGreedIcon = document.getElementById('fearGreedIcon');
+        const fearGreedNumber = document.getElementById('fearGreedNumber');
+        const fearGreedLabel = document.getElementById('fearGreedLabel');
+        const fearGreedIndicator = document.getElementById('fearGreedIndicator');
+        const fearGreedChange = document.getElementById('fearGreedChange');
+
+        const FNG_ICONS = {
+            'Extreme Fear': '😱',
+            'Fear': '😟',
+            'Neutral': '😐',
+            'Greed': '😊',
+            'Extreme Greed': '🤑',
+        };
+
+        const FNG_CLASSES = {
+            'Extreme Fear': 'extreme-fear',
+            'Fear': 'fear',
+            'Neutral': 'neutral',
+            'Greed': 'greed',
+            'Extreme Greed': 'extreme-greed',
+        };
+
+        async function fetchFearGreed() {
+            try {
+                const response = await fetch('/sentiment/fear-greed/');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
+                if (data.value === null) {
+                    throw new Error('No data');
+                }
+
+                renderFearGreed(data);
+            } catch (err) {
+                console.error('Failed to fetch Fear & Greed:', err);
+                fearGreedCard.classList.remove('loading');
+                fearGreedNumber.textContent = '—';
+                fearGreedLabel.textContent = 'Unavailable';
+            }
+        }
+
+        function renderFearGreed(data) {
+            const value = data.value;
+            const classification = data.classification;
+            const previous = data.previous_value;
+
+            fearGreedCard.classList.remove('loading');
+
+            // Update number and label
+            const cls = FNG_CLASSES[classification] || 'neutral';
+            const icon = FNG_ICONS[classification] || '📊';
+
+            fearGreedIcon.className = `fear-greed-icon ${cls}`;
+            fearGreedIcon.textContent = icon;
+
+            fearGreedNumber.textContent = value;
+            fearGreedNumber.className = `fear-greed-number ${cls}`;
+            fearGreedLabel.textContent = classification;
+            fearGreedLabel.className = `fear-greed-label ${cls}`;
+
+            // Update gauge indicator position (0-100)
+            const leftPercent = Math.max(2, Math.min(98, value));
+            fearGreedIndicator.style.left = `${leftPercent}%`;
+
+            // Update change vs previous day
+            if (previous !== null && previous !== undefined) {
+                const diff = value - previous;
+                if (diff > 0) {
+                    fearGreedChange.className = 'fear-greed-change up';
+                    fearGreedChange.innerHTML = `▲ +${diff} from yesterday`;
+                } else if (diff < 0) {
+                    fearGreedChange.className = 'fear-greed-change down';
+                    fearGreedChange.innerHTML = `▼ ${diff} from yesterday`;
+                } else {
+                    fearGreedChange.className = 'fear-greed-change';
+                    fearGreedChange.innerHTML = '○ No change from yesterday';
+                }
+            } else {
+                fearGreedChange.className = 'fear-greed-change';
+                fearGreedChange.innerHTML = '';
+            }
+        }
 
         // Start loading
         searchInput.classList.add('loading');
