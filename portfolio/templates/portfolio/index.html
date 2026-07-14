@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio - Live Crypto Balances</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0b0e11;
+            --bg-secondary: #1e2329;
+            --bg-card: #181a20;
+            --bg-input: #1e2329;
+            --bg-hover: #2b3139;
+            --border-color: #2b3139;
+            --text-primary: #eaecef;
+            --text-secondary: #848e9c;
+            --text-muted: #5e6673;
+            --accent-green: #0ecb81;
+            --accent-red: #f6465d;
+            --accent-blue: #1e80ff;
+            --accent-yellow: #f0a90b;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(30, 128, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 50%, rgba(14, 203, 129, 0.05) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Nav */
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .nav a:hover { color: var(--text-primary); background: var(--bg-hover); }
+        .nav a.active {
+            color: var(--accent-blue);
+            background: rgba(30, 128, 255, 0.1);
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0 24px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 800;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+        .header h1 span { color: var(--accent-green); }
+
+        .header-status {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-status svg { width: 16px; height: 16px; }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+        .summary-card:hover {
+            border-color: rgba(30, 128, 255, 0.3);
+            box-shadow: 0 0 30px rgba(30, 128, 255, 0.05);
+        }
+
+        .summary-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            font-size: 32px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -1px;
+        }
+        .summary-value.positive { color: var(--accent-green); }
+        .summary-value.negative { color: var(--accent-red); }
+        .summary-value.neutral { color: var(--text-primary); }
+
+        .summary-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .zar-sub {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .zar-sub strong {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .zar-inline {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 1px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Portfolio Table */
+        .portfolio-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        .portfolio-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .portfolio-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .portfolio-count {
+            font-size: 13px;
+            color: var(--text-muted);
+            padding: 4px 12px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+        .table-wrap::-webkit-scrollbar { height: 4px; }
+        .table-wrap::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 14px;
+            min-width: 700px;
+        }
+
+        thead th {
+            text-align: left;
+            padding: 10px 16px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            background: var(--bg-card);
+        }
+
+        tbody tr {
+            transition: background 0.15s ease;
+        }
+        tbody tr:hover {
+            background: var(--bg-hover);
+        }
+        tbody tr:not(:last-child) td {
+            border-bottom: 1px solid rgba(43, 49, 57, 0.5);
+        }
+
+        tbody td {
+            padding: 14px 16px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .asset-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .asset-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            flex-shrink: 0;
+        }
+
+        .asset-info .asset-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .asset-info .asset-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .text-green { color: var(--accent-green); }
+        .text-red { color: var(--accent-red); }
+        .text-muted { color: var(--text-muted); }
+        .text-secondary { color: var(--text-secondary); }
+
+        .pnl-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .pnl-badge.positive {
+            background: rgba(14, 203, 129, 0.1);
+            color: var(--accent-green);
+        }
+        .pnl-badge.negative {
+            background: rgba(246, 70, 93, 0.1);
+            color: var(--accent-red);
+        }
+        .pnl-badge.neutral {
+            background: rgba(94, 102, 115, 0.1);
+            color: var(--text-muted);
+        }
+
+        .stablecoin-badge {
+            display: inline-flex;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: rgba(240, 169, 11, 0.1);
+            color: var(--accent-yellow);
+        }
+
+        /* Error state */
+        .error-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(246, 70, 93, 0.3);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+        }
+        .error-card svg {
+            width: 48px;
+            height: 48px;
+            color: var(--accent-red);
+            margin-bottom: 16px;
+        }
+        .error-card h2 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        .error-card p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .error-card .btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 24px;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+        .error-card .btn:hover { opacity: 0.85; }
+
+        /* Loading */
+        .loading-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 14, 17, 0.85);
+            z-index: 10;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+        }
+        .loading-overlay.visible {
+            display: flex;
+        }
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Investment age tooltip */
+        .age-info {
+            cursor: help;
+            border-bottom: 1px dashed var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            .summary-grid { grid-template-columns: 1fr; }
+            .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .summary-value { font-size: 24px; }
+            table { font-size: 13px; }
+            tbody td, thead th { padding: 10px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Nav -->
+        <div class="nav">
+            <a href="/charts/">Charts</a>
+            <a href="/portfolio/" class="active">Portfolio</a>
+        </div>
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo-icon">$</div>
+                <h1>My<span>Portfolio</span></h1>
+            </div>
+            <div class="header-status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M9 17V9M15 17V11"/>
+                </svg>
+                <span>Account: {{ account_type }}</span>
+            </div>
+        </header>
+
+        {% if error %}
+        <!-- Error -->
+        <div class="error-card">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <h2>Connection Error</h2>
+            <p>{{ error }}</p>
+            <a href="/admin/charts/binanceconfig/" class="btn">Go to Admin Settings</a>
+        </div>
+        {% else %}
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-label">Total Portfolio Value</div>
+                <div class="summary-value neutral">${{ total_value|floatformat:2|default:"0.00" }}</div>
+                <div class="zar-sub">R {{ total_value_zar|floatformat:2|default:"0.00" }}</div>
+                <div class="summary-sub">Current estimated USD value</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Total P&amp;L</div>
+                <div class="summary-value {% if total_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                    {% if total_pnl >= 0 %}+{% endif %}${{ total_pnl|floatformat:2|default:"0.00" }}
+                </div>
+                <div class="zar-sub {% if total_pnl_zar >= 0 %}text-green{% else %}text-red{% endif %}">
+                    {% if total_pnl_zar >= 0 %}+{% endif %}R {{ total_pnl_zar|floatformat:2|default:"0.00" }}
+                </div>
+                <div class="summary-sub">Unrealized profit / loss</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Active Assets</div>
+                <div class="summary-value neutral">{{ balances|length }}</div>
+                <div class="zar-sub">Rate: <strong>R {{ usd_zar_rate|floatformat:2|default:"—" }}</strong> / $1</div>
+                <div class="summary-sub">Non-zero balances on Binance</div>
+            </div>
+        </div>
+
+        <!-- Portfolio Table -->
+        <div class="portfolio-card">
+            <div class="portfolio-header">
+                <h2>Asset Breakdown</h2>
+                <span class="portfolio-count">{{ balances|length }} assets</span>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Balance</th>
+                            <th>Current Price</th>
+                            <th>USD Value</th>
+                            <th>Entry Price</th>
+                            <th>P&amp;L</th>
+                            <th>Held Since</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bal in balances %}
+                        <tr>
+                            <td>
+                                <div class="asset-cell">
+                                    <div class="asset-icon">{{ bal.asset|slice:":3" }}</div>
+                                    <div class="asset-info">
+                                        <div class="asset-name">
+                                            {{ bal.asset }}
+                                            {% if bal.is_stablecoin %}<span class="stablecoin-badge">Stable</span>{% endif %}
+                                        </div>
+                                        {% if bal.locked > 0 %}
+                                        <div class="asset-sub">{{ bal.locked|floatformat:4 }} locked in orders</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="mono">{{ bal.total_qty|floatformat:4 }}</td>
+                            <td class="mono">
+                                {% if bal.price_usdt %}
+                                    ${{ bal.price_usdt|floatformat:4 }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="mono">
+                                {% if bal.current_value %}
+                                    ${{ bal.current_value|floatformat:2 }}
+                                    <span class="zar-inline">R {{ bal.current_value_zar|floatformat:2 }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="mono">
+                                {% if bal.entry_price %}
+                                    ${{ bal.entry_price|floatformat:4 }}
+                                {% elif bal.is_stablecoin %}
+                                    <span class="text-muted">≈ $1.00</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if bal.pnl is not None %}
+                                    <span class="pnl-badge {% if bal.pnl >= 0 %}positive{% else %}negative{% endif %}">
+                                        <span>{% if bal.pnl >= 0 %}+{% endif %}${{ bal.pnl|floatformat:2 }}</span>
+                                        <span>({% if bal.pnl_pct >= 0 %}+{% endif %}{{ bal.pnl_pct|floatformat:1 }}%)</span>
+                                    </span>
+                                    <span class="zar-inline" style="margin-top:2px;{% if bal.pnl >= 0 %}color:var(--accent-green){% else %}color:var(--accent-red){% endif %}">
+                                        {% if bal.pnl >= 0 %}+{% endif %}R {{ bal.pnl_zar|floatformat:2 }}
+                                    </span>
+                                {% elif bal.is_stablecoin %}
+                                    <span class="pnl-badge neutral">—</span>
+                                {% else %}
+                                    <span class="text-muted">No trade data</span>
+                                {% endif %}
+                            </td>
+                            <td class="mono text-secondary">
+                                {% if bal.first_trade_time %}
+                                    <span class="age-info" title="{{ bal.first_trade_time|date:'M d, Y H:i' }}">
+                                        {{ bal.first_trade_time|timesince }} ago
+                                    </span>
+                                {% elif bal.is_stablecoin %}
+                                    <span class="text-muted">—</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">
+                                No non-zero balances found in your Binance account.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Auto-refresh: reload page every 60 seconds -->
+    <script>
+        setTimeout(() => location.reload(), 60000);
+    </script>
+</body>
+</html>

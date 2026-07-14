@@ -1,0 +1,2200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Crypto Charts - Binance Real-Time</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0b0e11;
+            --bg-secondary: #1e2329;
+            --bg-card: #181a20;
+            --bg-input: #1e2329;
+            --bg-hover: #2b3139;
+            --border-color: #2b3139;
+            --text-primary: #eaecef;
+            --text-secondary: #848e9c;
+            --text-muted: #5e6673;
+            --accent-green: #0ecb81;
+            --accent-red: #f6465d;
+            --accent-blue: #1e80ff;
+            --accent-yellow: #f0a90b;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(30, 128, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 50%, rgba(14, 203, 129, 0.05) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0 24px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-yellow), var(--accent-blue));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 800;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
+
+        .header h1 span {
+            color: var(--accent-yellow);
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        .status-dot.disconnected {
+            background: var(--accent-red);
+            animation: none;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        /* Search Section */
+        .search-section {
+            margin-bottom: 32px;
+        }
+
+        .search-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .search-wrapper {
+            position: relative;
+            max-width: 480px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(30, 128, 255, 0.15);
+        }
+
+        .search-input.loading {
+            background-image: linear-gradient(90deg, var(--bg-input) 25%, var(--bg-hover) 50%, var(--bg-input) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .search-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            display: none;
+            transition: all 0.2s;
+        }
+
+        .search-clear:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        .search-clear.visible {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Auto-complete Dropdown */
+        .autocomplete-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            max-height: 360px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            z-index: 100;
+            display: none;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .autocomplete-dropdown.visible {
+            display: block;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            border-bottom: 1px solid rgba(43, 49, 57, 0.5);
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover,
+        .dropdown-item.highlighted {
+            background: var(--bg-hover);
+        }
+
+        .dropdown-item .symbol {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .dropdown-item .base {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .dropdown-item .quote {
+            font-size: 11px;
+            color: var(--accent-yellow);
+            font-weight: 500;
+            padding: 2px 8px;
+            background: rgba(240, 169, 11, 0.1);
+            border-radius: 4px;
+        }
+
+        .dropdown-item .status-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .dropdown-item .status-badge.trading {
+            background: rgba(14, 203, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        .dropdown-empty {
+            padding: 24px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* Main Content Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        /* Price Card */
+        .price-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 28px 32px;
+            transition: all 0.3s ease;
+        }
+
+        .price-card.active {
+            border-color: rgba(30, 128, 255, 0.3);
+            box-shadow: 0 0 30px rgba(30, 128, 255, 0.05);
+        }
+
+        .price-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .price-pair {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .price-pair-name {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .price-pair-name .quote-part {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .price-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 6px;
+            background: rgba(14, 203, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        .price-updated {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .price-main {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .price-current {
+            font-size: 48px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -2px;
+            line-height: 1;
+            transition: color 0.3s ease;
+        }
+
+        .price-current.up {
+            color: var(--accent-green);
+        }
+
+        .price-current.down {
+            color: var(--accent-red);
+        }
+
+        .price-current.neutral {
+            color: var(--text-primary);
+        }
+
+        .price-change {
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .price-change.up {
+            color: var(--accent-green);
+        }
+
+        .price-change.down {
+            color: var(--accent-red);
+        }
+
+        .price-volume {
+            margin-top: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .price-volume span {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-value.up { color: var(--accent-green); }
+        .stat-value.down { color: var(--accent-red); }
+        .stat-value.neutral { color: var(--text-primary); }
+
+        /* No Selection State */
+        .no-selection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 32px;
+            text-align: center;
+            background: var(--bg-card);
+            border: 1px dashed var(--border-color);
+            border-radius: 16px;
+        }
+
+        .no-selection-icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(30, 128, 255, 0.1);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .no-selection h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .no-selection p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            max-width: 360px;
+            line-height: 1.6;
+        }
+
+        /* Candlestick Chart */
+        .chart-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .chart-section.active {
+            border-color: rgba(30, 128, 255, 0.3);
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .chart-title-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chart-interval-selector {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-primary);
+            padding: 3px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .interval-btn {
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .interval-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        .interval-btn.active {
+            color: var(--accent-blue);
+            background: rgba(30, 128, 255, 0.15);
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 480px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(11, 14, 17, 0.8);
+            z-index: 10;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: opacity 0.3s ease;
+        }
+
+        .chart-loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .chart-loading .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* News & Sentiment Section */
+        .sentiment-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .sentiment-section.active {
+            border-color: rgba(30, 128, 255, 0.3);
+        }
+
+        .sentiment-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .sentiment-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sentiment-gauge {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 8px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .sentiment-gauge.bullish {
+            background: rgba(14, 203, 129, 0.12);
+            color: var(--accent-green);
+        }
+
+        .sentiment-gauge.bearish {
+            background: rgba(246, 70, 93, 0.12);
+            color: var(--accent-red);
+        }
+
+        .sentiment-gauge.neutral {
+            background: rgba(132, 142, 156, 0.12);
+            color: var(--text-secondary);
+        }
+
+        .sentiment-gauge.loading {
+            background: rgba(30, 128, 255, 0.1);
+            color: var(--accent-blue);
+        }
+
+        .sentiment-gauge-icon {
+            font-size: 18px;
+        }
+
+        .sentiment-gauge-score {
+            font-size: 12px;
+            opacity: 0.7;
+            font-weight: 400;
+        }
+
+        .sentiment-breakdown {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .sentiment-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 6px;
+        }
+
+        .sentiment-badge.bullish {
+            background: rgba(14, 203, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        .sentiment-badge.bearish {
+            background: rgba(246, 70, 93, 0.1);
+            color: var(--accent-red);
+        }
+
+        .sentiment-badge.neutral {
+            background: rgba(132, 142, 156, 0.1);
+            color: var(--text-muted);
+        }
+
+        .sentiment-refresh {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sentiment-refresh:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .sentiment-refresh:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .sentiment-refresh .spin {
+            animation: spin 0.8s linear infinite;
+        }
+
+        .sentiment-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .sentiment-column-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sentiment-column-title span {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 400;
+            text-transform: none;
+        }
+
+        .news-item {
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .news-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .news-item:hover {
+            border-color: rgba(30, 128, 255, 0.3);
+            background: var(--bg-hover);
+        }
+
+        .news-item-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .news-item-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.4;
+            flex: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .news-item-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .news-item-title a:hover {
+            color: var(--accent-blue);
+        }
+
+        .news-item-badge {
+            flex-shrink: 0;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .news-item-badge.bullish {
+            background: rgba(14, 203, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        .news-item-badge.bearish {
+            background: rgba(246, 70, 93, 0.1);
+            color: var(--accent-red);
+        }
+
+        .news-item-badge.neutral {
+            background: rgba(132, 142, 156, 0.1);
+            color: var(--text-muted);
+        }
+
+        .news-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .news-item-source {
+            font-weight: 500;
+        }
+
+        .news-item-time {
+            color: var(--text-muted);
+        }
+
+        .news-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .news-error {
+            padding: 16px;
+            text-align: center;
+            color: var(--accent-red);
+            font-size: 13px;
+            background: rgba(246, 70, 93, 0.08);
+            border-radius: 8px;
+        }
+
+        .sentiment-loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            color: var(--text-muted);
+            gap: 12px;
+        }
+
+        .sentiment-loading-state .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .reddit-score {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--accent-yellow);
+            font-weight: 500;
+        }
+
+        .reddit-comments {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Make chart responsive at smaller sizes */
+        @media (max-width: 768px) {
+            .chart-container { height: 360px; }
+            .chart-header { flex-direction: column; align-items: flex-start; }
+            .sentiment-content { grid-template-columns: 1fr; }
+            .sentiment-header { flex-direction: column; align-items: flex-start; }
+        }
+
+        @media (max-width: 480px) {
+            .chart-container { height: 280px; }
+        }
+
+        /* Order Book Mini */
+        .orderbook-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        .orderbook-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+
+        .orderbook-side-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .orderbook-side-title.asks { color: var(--accent-red); }
+        .orderbook-side-title.bids { color: var(--accent-green); }
+
+        .orderbook-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .orderbook-price.ask { color: var(--accent-red); }
+        .orderbook-price.bid { color: var(--accent-green); }
+        .orderbook-amount { color: var(--text-secondary); }
+
+        /* Connection Status Bar */
+        .connection-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px 24px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-muted);
+            z-index: 50;
+        }
+
+        .connection-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .connection-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .connection-badge.connected {
+            background: rgba(14, 203, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        .connection-badge.disconnected {
+            background: rgba(246, 70, 93, 0.1);
+            color: var(--accent-red);
+        }
+
+        /* Flash effect for price updates */
+        @keyframes flash-green {
+            0% { background-color: rgba(14, 203, 129, 0.15); }
+            100% { background-color: transparent; }
+        }
+
+        @keyframes flash-red {
+            0% { background-color: rgba(246, 70, 93, 0.15); }
+            100% { background-color: transparent; }
+        }
+
+        .flash-up {
+            animation: flash-green 0.5s ease-out;
+        }
+
+        .flash-down {
+            animation: flash-red 0.5s ease-out;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .price-current { font-size: 36px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .orderbook-grid { grid-template-columns: 1fr; gap: 16px; }
+            .price-card { padding: 20px; }
+        }
+
+        @media (max-width: 480px) {
+            .price-current { font-size: 28px; }
+            .price-main { flex-direction: column; gap: 8px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo-icon">₿</div>
+                <h1>Crypto<span>Charts</span></h1>
+            </div>
+            <div class="header-status">
+                <span id="pairCount" class="status-dot"></span>
+                <span id="pairCountText">Loading pairs...</span>
+            </div>
+        </header>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <label class="search-label">Search Trading Pair</label>
+            <div class="search-wrapper">
+                <span class="search-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </span>
+                <input
+                    type="text"
+                    id="pairSearch"
+                    class="search-input"
+                    placeholder="e.g. BTCUSDT, ETHUSDT, SOLUSDT..."
+                    autocomplete="off"
+                    spellcheck="false"
+                />
+                <button id="searchClear" class="search-clear" aria-label="Clear search">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+                <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-grid">
+            <!-- Price Card -->
+            <div id="priceCard" style="display: none;">
+                <div class="price-card" id="priceCardInner">
+                    <div class="price-card-header">
+                        <div class="price-pair">
+                            <span class="price-pair-name" id="pairName">BTC<span class="quote-part">/USDT</span></span>
+                            <span class="price-badge">● LIVE</span>
+                        </div>
+                        <span class="price-updated" id="lastUpdated">—</span>
+                    </div>
+                    <div id="priceMain">
+                        <div class="price-main">
+                            <span class="price-current neutral" id="currentPrice">—</span>
+                            <span class="price-change" id="priceChange">—</span>
+                        </div>
+                        <div class="price-volume">
+                            24h Volume: <span id="volume24h">—</span>
+                        </div>
+                    </div>
+                    <div class="stats-grid" id="statsGrid">
+                        <div class="stat-item">
+                            <div class="stat-label">24h High</div>
+                            <div class="stat-value neutral" id="high24h">—</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">24h Low</div>
+                            <div class="stat-value neutral" id="low24h">—</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">24h Change</div>
+                            <div class="stat-value neutral" id="changePercent">—</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Trades</div>
+                            <div class="stat-value neutral" id="tradeCount">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Selection State -->
+            <div id="noSelection" class="no-selection">
+                <div class="no-selection-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1e80ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                </div>
+                <h2>Select a trading pair</h2>
+                <p>Search and select any Binance trading pair above to view live real-time price data via WebSocket.</p>
+            </div>
+
+            <!-- Candlestick Chart Section (hidden until pair selected) -->
+            <div id="chartSection" style="display: none;">
+                <div class="chart-section" id="chartSectionInner">
+                    <div class="chart-header">
+                        <div class="chart-title-area">
+                            <div class="section-title">Price Chart</div>
+                            <span style="font-size:12px;color:var(--text-muted)" id="chartCandleCount"></span>
+                        </div>
+                        <div class="chart-interval-selector" id="intervalSelector">
+                            <button class="interval-btn" data-interval="1m">1m</button>
+                            <button class="interval-btn" data-interval="5m">5m</button>
+                            <button class="interval-btn active" data-interval="15m">15m</button>
+                            <button class="interval-btn" data-interval="1h">1h</button>
+                            <button class="interval-btn" data-interval="4h">4h</button>
+                            <button class="interval-btn" data-interval="1d">1D</button>
+                        </div>
+                    </div>
+                    <div class="chart-container" id="chartContainer">
+                        <div class="chart-loading" id="chartLoading">
+                            <div class="spinner"></div>
+                            <span>Loading chart data...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Book Section (hidden until pair selected) -->
+            <div id="orderbookSection" style="display: none;">
+                <div class="orderbook-section">
+                    <div class="section-title">Order Book Depth</div>
+                    <div class="orderbook-grid">
+                        <div class="orderbook-side">
+                            <div class="orderbook-side-title asks">Asks</div>
+                            <div id="asksContainer">
+                                <div class="orderbook-row"><span class="orderbook-price ask">—</span><span class="orderbook-amount">—</span></div>
+                            </div>
+                        </div>
+                        <div class="orderbook-side">
+                            <div class="orderbook-side-title bids">Bids</div>
+                            <div id="bidsContainer">
+                                <div class="orderbook-row"><span class="orderbook-price bid">—</span><span class="orderbook-amount">—</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- News & Sentiment Section (hidden until pair selected) -->
+            <div id="sentimentSection" style="display: none;">
+                <div class="sentiment-section" id="sentimentSectionInner">
+                    <div class="sentiment-header">
+                        <div class="sentiment-header-left">
+                            <div class="section-title">📰 News & Market Sentiment</div>
+                            <div class="sentiment-gauge loading" id="sentimentGauge">
+                                <span class="sentiment-gauge-icon">⏳</span>
+                                <span id="sentimentLabel">Analyzing...</span>
+                                <span class="sentiment-gauge-score" id="sentimentScore"></span>
+                            </div>
+                            <div class="sentiment-breakdown" id="sentimentBreakdown" style="display:none;">
+                                <span class="sentiment-badge bullish" id="bullishCount">0</span>
+                                <span class="sentiment-badge neutral" id="neutralCount">0</span>
+                                <span class="sentiment-badge bearish" id="bearishCount">0</span>
+                            </div>
+                        </div>
+                        <button class="sentiment-refresh" id="sentimentRefreshBtn" disabled>
+                            <span>⟳</span> Refresh
+                        </button>
+                    </div>
+                    <div id="sentimentContent">
+                        <div class="sentiment-loading-state">
+                            <div class="spinner"></div>
+                            <span>Scraping news sources & analyzing sentiment...</span>
+                            <span style="font-size:11px;color:var(--text-muted)">CoinDesk, CoinTelegraph, Google News, Reddit, Hacker News</span>
+                        </div>
+                    </div>
+                    <div style="margin-top:12px;font-size:11px;color:var(--text-muted);text-align:center;">
+                        Data sourced from public RSS feeds &amp; Reddit — refreshed every 5 minutes
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status Bar -->
+    <div class="connection-bar">
+        <div class="connection-info">
+            <div class="connection-badge connected" id="wsStatus">
+                <span class="status-dot"></span>
+                <span>Connected</span>
+            </div>
+            <span id="streamInfo">No stream active</span>
+        </div>
+        <span>Data via Binance WebSocket</span>
+    </div>
+
+    <script>
+        // ============================================================
+        // State
+        // ============================================================
+        let allSymbols = [];
+        let filteredSymbols = [];
+        let selectedSymbol = null;
+        let ws = null;
+        let reconnectTimer = null;
+        let highlightedIndex = -1;
+        let previousPrice = null;
+        let previousPriceDirection = 'neutral';
+        let depthWs = null;
+        // Chart state
+        let chart = null;
+        let candleSeries = null;
+        let volumeSeries = null;
+        let klineWs = null;
+        let currentInterval = '15m';
+        let chartContainer = null;
+        let chartResizeObserver = null;
+        let chartInitialized = false;
+
+        // DOM refs
+        const searchInput = document.getElementById('pairSearch');
+        const dropdown = document.getElementById('autocompleteDropdown');
+        const clearBtn = document.getElementById('searchClear');
+        const noSelection = document.getElementById('noSelection');
+        const priceCard = document.getElementById('priceCard');
+        const orderbookSection = document.getElementById('orderbookSection');
+        const wsStatus = document.getElementById('wsStatus');
+        const streamInfo = document.getElementById('streamInfo');
+        const pairCountText = document.getElementById('pairCountText');
+        const chartSection = document.getElementById('chartSection');
+        const chartContainerEl = document.getElementById('chartContainer');
+        const chartLoadingEl = document.getElementById('chartLoading');
+
+        // ============================================================
+        // Fetch all trading pairs from Binance
+        // ============================================================
+        async function fetchSymbols() {
+            try {
+                const response = await fetch('https://api.binance.com/api/v3/exchangeInfo');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
+                allSymbols = data.symbols
+                    .filter(s => s.status === 'TRADING')
+                    .map(s => ({
+                        symbol: s.symbol,
+                        baseAsset: s.baseAsset,
+                        quoteAsset: s.quoteAsset,
+                        display: `${s.baseAsset}/${s.quoteAsset}`,
+                    }))
+                    .sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+                pairCountText.textContent = `${allSymbols.length.toLocaleString()} trading pairs loaded`;
+                filteredSymbols = allSymbols;
+                searchInput.classList.remove('loading');
+            } catch (err) {
+                console.error('Failed to fetch symbols:', err);
+                pairCountText.textContent = 'Failed to load pairs. Retrying...';
+                setTimeout(fetchSymbols, 5000);
+            }
+        }
+
+        // ============================================================
+        // Auto-complete
+        // ============================================================
+        function filterSymbols(query) {
+            if (!query || query.trim() === '') {
+                return [];
+            }
+            const q = query.toUpperCase().trim();
+            return allSymbols.filter(s =>
+                s.symbol.includes(q) ||
+                s.baseAsset.toUpperCase().includes(q) ||
+                s.quoteAsset.toUpperCase().includes(q)
+            ).slice(0, 50);
+        }
+
+        function renderDropdown(items) {
+            dropdown.innerHTML = '';
+
+            if (items.length === 0) {
+                dropdown.innerHTML = '<div class="dropdown-empty">No matching pairs found</div>';
+                dropdown.classList.add('visible');
+                highlightedIndex = -1;
+                return;
+            }
+
+            items.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = `dropdown-item${idx === highlightedIndex ? ' highlighted' : ''}`;
+                div.innerHTML = `
+                    <div>
+                        <div class="symbol">${item.symbol}</div>
+                        <div class="base">${item.baseAsset}</div>
+                    </div>
+                    <div class="quote">${item.quoteAsset}</div>
+                `;
+                div.addEventListener('click', () => selectPair(item));
+                div.addEventListener('mouseenter', () => {
+                    highlightedIndex = idx;
+                    renderDropdown(items);
+                });
+                dropdown.appendChild(div);
+            });
+            dropdown.classList.add('visible');
+        }
+
+        function handleSearchInput() {
+            const query = searchInput.value;
+            clearBtn.classList.toggle('visible', query.length > 0);
+
+            if (query.length === 0) {
+                dropdown.classList.remove('visible');
+                highlightedIndex = -1;
+                return;
+            }
+
+            const results = filterSymbols(query);
+            highlightedIndex = -1;
+            renderDropdown(results);
+        }
+
+        function handleSearchKeydown(e) {
+            const items = dropdown.querySelectorAll('.dropdown-item');
+            if (items.length === 0 && e.key !== 'Escape') return;
+
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+                    renderDropdown(filterSymbols(searchInput.value));
+                    if (items[highlightedIndex]) {
+                        items[highlightedIndex].scrollIntoView({ block: 'nearest' });
+                    }
+                    break;
+
+                case 'ArrowUp':
+                    e.preventDefault();
+                    highlightedIndex = Math.max(highlightedIndex - 1, 0);
+                    renderDropdown(filterSymbols(searchInput.value));
+                    if (items[highlightedIndex]) {
+                        items[highlightedIndex].scrollIntoView({ block: 'nearest' });
+                    }
+                    break;
+
+                case 'Enter':
+                    e.preventDefault();
+                    if (highlightedIndex >= 0 && highlightedIndex < items.length) {
+                        const results = filterSymbols(searchInput.value);
+                        if (results[highlightedIndex]) {
+                            selectPair(results[highlightedIndex]);
+                        }
+                    }
+                    break;
+
+                case 'Escape':
+                    dropdown.classList.remove('visible');
+                    highlightedIndex = -1;
+                    searchInput.blur();
+                    break;
+            }
+        }
+
+        // ============================================================
+        // Select Pair & Connect WebSocket
+        // ============================================================
+        function selectPair(item) {
+            selectedSymbol = item;
+            searchInput.value = item.symbol;
+            dropdown.classList.remove('visible');
+            highlightedIndex = -1;
+            clearBtn.classList.add('visible');
+
+            // Show all sections, hide no selection
+            noSelection.style.display = 'none';
+            priceCard.style.display = 'block';
+            chartSection.style.display = 'block';
+            orderbookSection.style.display = 'block';
+
+            // Update pair name
+            document.getElementById('pairName').innerHTML = `${item.baseAsset}<span class="quote-part">/${item.quoteAsset}</span>`;
+
+            // Reset price display
+            document.getElementById('currentPrice').textContent = '—';
+            document.getElementById('currentPrice').className = 'price-current neutral';
+            document.getElementById('priceChange').textContent = '—';
+            document.getElementById('priceChange').className = 'price-change';
+            document.getElementById('volume24h').textContent = '—';
+            document.getElementById('high24h').textContent = '—';
+            document.getElementById('high24h').className = 'stat-value neutral';
+            document.getElementById('low24h').textContent = '—';
+            document.getElementById('low24h').className = 'stat-value neutral';
+            document.getElementById('changePercent').textContent = '—';
+            document.getElementById('changePercent').className = 'stat-value neutral';
+            document.getElementById('tradeCount').textContent = '—';
+            document.getElementById('tradeCount').className = 'stat-value neutral';
+            document.getElementById('lastUpdated').textContent = 'Connecting...';
+
+            previousPrice = null;
+            previousPriceDirection = 'neutral';
+
+            // Connect WebSockets
+            connectWebSocket(item.symbol.toLowerCase());
+            connectDepthWebSocket(item.symbol.toLowerCase());
+
+            // Load candlestick chart
+            currentInterval = document.querySelector('.interval-btn.active')?.dataset?.interval || '15m';
+            loadChart(item.symbol, currentInterval);
+        }
+
+        // ============================================================
+        // WebSocket - 24hr Ticker Stream
+        // ============================================================
+        function connectWebSocket(symbol) {
+            // Close existing connection
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+
+            const streamName = `${symbol}@ticker`;
+            const url = `wss://stream.binance.com:9443/ws/${streamName}`;
+
+            wsStatus.className = 'connection-badge connected';
+            wsStatus.innerHTML = '<span class="status-dot"></span><span>Connecting...</span>';
+            streamInfo.textContent = `Stream: ${symbol}@ticker`;
+
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                wsStatus.className = 'connection-badge connected';
+                wsStatus.innerHTML = '<span class="status-dot"></span><span>Connected</span>';
+                document.getElementById('lastUpdated').textContent = 'Connected';
+                document.getElementById('priceCardInner').classList.add('active');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateTickerData(data);
+                } catch (err) {
+                    console.error('Parse error:', err);
+                }
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                wsStatus.className = 'connection-badge disconnected';
+                wsStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Error</span>';
+            };
+
+            ws.onclose = () => {
+                wsStatus.className = 'connection-badge disconnected';
+                wsStatus.innerHTML = '<span class="status-dot disconnected"></span><span>Disconnected</span>';
+                document.getElementById('priceCardInner').classList.remove('active');
+                streamInfo.textContent = `Reconnecting to ${symbol}...`;
+
+                // Auto-reconnect after 2 seconds
+                if (selectedSymbol && selectedSymbol.symbol.toLowerCase() === symbol) {
+                    reconnectTimer = setTimeout(() => connectWebSocket(symbol), 2000);
+                }
+            };
+        }
+
+        function updateTickerData(data) {
+            const price = parseFloat(data.c);
+            const change = parseFloat(data.p);
+            const changePercent = parseFloat(data.P);
+            const high = parseFloat(data.h);
+            const low = parseFloat(data.l);
+            const volume = parseFloat(data.v);
+            const quoteVolume = parseFloat(data.q);
+            const count = data.n;
+
+            // Format price based on value
+            const priceStr = formatPrice(price);
+            const changeStr = change >= 0 ? `+${change.toFixed(2)}` : `${change.toFixed(2)}`;
+            const changePercentStr = changePercent >= 0
+                ? `+${changePercent.toFixed(2)}%`
+                : `${changePercent.toFixed(2)}%`;
+
+            // Determine direction
+            let direction = 'neutral';
+            if (previousPrice !== null) {
+                direction = price > previousPrice ? 'up' : price < previousPrice ? 'down' : previousPriceDirection;
+            }
+            previousPrice = price;
+            previousPriceDirection = direction;
+
+            // Update price
+            const priceEl = document.getElementById('currentPrice');
+            priceEl.textContent = priceStr;
+            priceEl.className = `price-current ${direction}`;
+
+            // Flash effect on the card
+            const card = document.getElementById('priceCardInner');
+            if (direction === 'up') {
+                card.classList.remove('flash-down');
+                card.classList.add('flash-up');
+            } else if (direction === 'down') {
+                card.classList.remove('flash-up');
+                card.classList.add('flash-down');
+            }
+
+            // Update change
+            const changeEl = document.getElementById('priceChange');
+            changeEl.textContent = `${changeStr} (${changePercentStr})`;
+            changeEl.className = `price-change ${change >= 0 ? 'up' : 'down'}`;
+
+            // Update volume
+            document.getElementById('volume24h').textContent = formatVolume(quoteVolume);
+
+            // Update stats
+            const highEl = document.getElementById('high24h');
+            highEl.textContent = formatPrice(high);
+            highEl.className = 'stat-value up';
+
+            const lowEl = document.getElementById('low24h');
+            lowEl.textContent = formatPrice(low);
+            lowEl.className = 'stat-value down';
+
+            const cpEl = document.getElementById('changePercent');
+            cpEl.textContent = changePercentStr;
+            cpEl.className = `stat-value ${changePercent >= 0 ? 'up' : 'down'}`;
+
+            const tcEl = document.getElementById('tradeCount');
+            tcEl.textContent = count.toLocaleString();
+            tcEl.className = 'stat-value neutral';
+
+            // Update timestamp
+            const now = new Date();
+            document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
+        }
+
+        // ============================================================
+        // WebSocket - Depth Stream (Order Book)
+        // ============================================================
+        function connectDepthWebSocket(symbol) {
+            if (depthWs) {
+                depthWs.close();
+                depthWs = null;
+            }
+
+            const url = `wss://stream.binance.com:9443/ws/${symbol}@depth10`;
+
+            depthWs = new WebSocket(url);
+
+            depthWs.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateOrderBook(data);
+                } catch (err) {
+                    console.error('Depth parse error:', err);
+                }
+            };
+
+            depthWs.onclose = () => {
+                if (selectedSymbol && selectedSymbol.symbol.toLowerCase() === symbol) {
+                    setTimeout(() => connectDepthWebSocket(symbol), 5000);
+                }
+            };
+        }
+
+        // ============================================================
+        // Candlestick Chart
+        // ============================================================
+        const BINANCE_REST = 'https://api.binance.com';
+        const BINANCE_WS = 'wss://stream.binance.com:9443/ws';
+
+        const INTERVAL_LIMITS = {
+            '1m': 1000,
+            '5m': 1000,
+            '15m': 1000,
+            '1h': 1000,
+            '4h': 1000,
+            '1d': 1000,
+        };
+
+        function initChart() {
+            if (!chartContainerEl) return;
+
+            // Clean up old chart if it exists
+            if (chart) {
+                chart.remove();
+                chart = null;
+                candleSeries = null;
+                volumeSeries = null;
+            }
+            if (chartResizeObserver) {
+                chartResizeObserver.disconnect();
+            }
+
+            chart = LightweightCharts.createChart(chartContainerEl, {
+                layout: {
+                    background: { type: 'solid', color: '#181a20' },
+                    textColor: '#848e9c',
+                    fontSize: 11,
+                    fontFamily: 'Inter, sans-serif',
+                },
+                grid: {
+                    vertLines: { color: '#2b3139' },
+                    horzLines: { color: '#2b3139' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                    vertLine: {
+                        color: '#5e6673',
+                        width: 1,
+                        style: LightweightCharts.LineStyle.Dashed,
+                        labelBackgroundColor: '#2b3139',
+                    },
+                    horzLine: {
+                        color: '#5e6673',
+                        width: 1,
+                        style: LightweightCharts.LineStyle.Dashed,
+                        labelBackgroundColor: '#2b3139',
+                    },
+                },
+                timeScale: {
+                    borderColor: '#2b3139',
+                    timeVisible: true,
+                    secondsVisible: false,
+                    borderVisible: true,
+                    fixLeftEdge: true,
+                    fixRightEdge: true,
+                    barSpacing: 8,
+                    minBarSpacing: 4,
+                    rightOffset: 12,
+                },
+                rightPriceScale: {
+                    borderColor: '#2b3139',
+                    borderVisible: true,
+                    scaleMargins: {
+                        top: 0.05,
+                        bottom: 0.25,
+                    },
+                },
+                leftPriceScale: {
+                    visible: false,
+                },
+                handleScroll: {
+                    vertTouchDrag: false,
+                },
+            });
+
+            // Candlestick series
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#0ecb81',
+                downColor: '#f6465d',
+                borderUpColor: '#0ecb81',
+                borderDownColor: '#f6465d',
+                wickUpColor: '#0ecb81',
+                wickDownColor: '#f6465d',
+                priceFormat: {
+                    type: 'price',
+                    precision: 2,
+                    minMove: 0.01,
+                },
+                priceScaleId: 'right',
+            });
+
+            // Volume histogram series on a separate price scale
+            volumeSeries = chart.addHistogramSeries({
+                priceFormat: { type: 'volume' },
+                priceScaleId: 'volumeScale',
+            });
+
+            chart.priceScale('volumeScale').applyOptions({
+                scaleMargins: {
+                    top: 0.8,
+                    bottom: 0,
+                },
+            });
+
+            // Fit content initially
+            chart.timeScale().fitContent();
+
+            // Resize observer for responsive chart
+            chartResizeObserver = new ResizeObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.target === chartContainerEl) {
+                        const { width, height } = entry.contentRect;
+                        chart.applyOptions({ width, height });
+                    }
+                }
+            });
+            chartResizeObserver.observe(chartContainerEl);
+
+            chartInitialized = true;
+        }
+
+        async function fetchKlines(symbol, interval) {
+            const limit = INTERVAL_LIMITS[interval] || 500;
+            const url = `${BINANCE_REST}/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=${limit}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        }
+
+        function formatKlineData(raw) {
+            return raw.map(k => ({
+                time: Math.floor(k[0] / 1000),  // Binance uses ms timestamps, chart expects seconds
+                open: parseFloat(k[1]),
+                high: parseFloat(k[2]),
+                low: parseFloat(k[3]),
+                close: parseFloat(k[4]),
+                volume: parseFloat(k[5]),
+            }));
+        }
+
+        function renderChartData(klines) {
+            if (!candleSeries || !volumeSeries) return;
+
+            // Split into candles and volume data
+            const candles = klines.map(k => ({
+                time: k.time,
+                open: k.open,
+                high: k.high,
+                low: k.low,
+                close: k.close,
+            }));
+
+            const volumes = klines.map(k => ({
+                time: k.time,
+                value: k.volume,
+                color: k.close >= k.open
+                    ? 'rgba(14, 203, 129, 0.3)'
+                    : 'rgba(246, 70, 93, 0.3)',
+            }));
+
+            candleSeries.setData(candles);
+            volumeSeries.setData(volumes);
+
+            // Show latest 300 candles by default; pan left to see the rest (up to 1000)
+            if (candles.length > 300) {
+                chart.timeScale().setVisibleLogicalRange({
+                    from: candles.length - 300,
+                    to: candles.length - 1,
+                });
+            } else {
+                chart.timeScale().fitContent();
+            }
+
+            // Update candle count
+            document.getElementById('chartCandleCount').textContent =
+                `${klines.length} candles (showing latest ${Math.min(klines.length, 300)}, pan left for more)`;
+        }
+
+        // ============================================================
+        // Kline WebSocket for real-time updates
+        // ============================================================
+        function connectKlineWebSocket(symbol, interval) {
+            if (klineWs) {
+                klineWs.close();
+                klineWs = null;
+            }
+
+            const stream = `${symbol.toLowerCase()}@kline_${interval}`;
+            const url = `${BINANCE_WS}/${stream}`;
+
+            klineWs = new WebSocket(url);
+
+            klineWs.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.e === 'kline') {
+                        updateRealtimeCandle(data.k);
+                    }
+                } catch (err) {
+                    console.error('Kline WS parse error:', err);
+                }
+            };
+
+            klineWs.onclose = () => {
+                if (selectedSymbol && selectedSymbol.symbol.toLowerCase() === symbol) {
+                    setTimeout(() => connectKlineWebSocket(symbol, interval), 5000);
+                }
+            };
+        }
+
+        function updateRealtimeCandle(k) {
+            if (!candleSeries || !volumeSeries) return;
+
+            const candle = {
+                time: Math.floor(k.t / 1000),
+                open: parseFloat(k.o),
+                high: parseFloat(k.h),
+                low: parseFloat(k.l),
+                close: parseFloat(k.c),
+                volume: parseFloat(k.v),
+            };
+
+            const isClosed = k.x;
+
+            if (isClosed) {
+                // Candle is complete - update the last candle and move on
+                candleSeries.update(candle);
+                volumeSeries.update({
+                    time: candle.time,
+                    value: candle.volume,
+                    color: candle.close >= candle.open
+                        ? 'rgba(14, 203, 129, 0.3)'
+                        : 'rgba(246, 70, 93, 0.3)',
+                });
+            } else {
+                // Candle is still forming - update it in real-time
+                candleSeries.update(candle);
+                volumeSeries.update({
+                    time: candle.time,
+                    value: candle.volume,
+                    color: candle.close >= candle.open
+                        ? 'rgba(14, 203, 129, 0.3)'
+                        : 'rgba(246, 70, 93, 0.3)',
+                });
+            }
+        }
+
+        async function loadChart(symbol, interval) {
+            // Show loading
+            chartLoadingEl.classList.remove('hidden');
+
+            try {
+                // Initialize chart if needed
+                if (!chartInitialized) {
+                    initChart();
+                }
+
+                // Fetch historical klines
+                const rawKlines = await fetchKlines(symbol, interval);
+                const formatted = formatKlineData(rawKlines);
+
+                // Render chart data
+                renderChartData(formatted);
+
+                // Hide loading
+                chartLoadingEl.classList.add('hidden');
+
+                // Connect to kline WebSocket for real-time updates
+                connectKlineWebSocket(symbol, interval);
+            } catch (err) {
+                console.error('Failed to load chart:', err);
+                chartLoadingEl.innerHTML = `
+                    <span style="color:var(--accent-red)">Failed to load chart data</span>
+                `;
+            }
+        }
+
+        function changeInterval(interval) {
+            if (!selectedSymbol) return;
+
+            currentInterval = interval;
+
+            // Update active button styling
+            document.querySelectorAll('.interval-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.interval === interval);
+            });
+
+            // Disconnect old kline WS
+            if (klineWs) {
+                klineWs.close();
+                klineWs = null;
+            }
+
+            // Reload chart with new interval
+            loadChart(selectedSymbol.symbol, interval);
+        }
+
+        function cleanupChart() {
+            if (klineWs) {
+                klineWs.close();
+                klineWs = null;
+            }
+            if (chartResizeObserver) {
+                chartResizeObserver.disconnect();
+                chartResizeObserver = null;
+            }
+            if (chart) {
+                chart.remove();
+                chart = null;
+                candleSeries = null;
+                volumeSeries = null;
+                chartInitialized = false;
+            }
+        }
+
+        function updateOrderBook(data) {
+            const asksContainer = document.getElementById('asksContainer');
+            const bidsContainer = document.getElementById('bidsContainer');
+
+            // Asks (sorted ascending)
+            const asks = (data.a || []).slice(0, 10);
+            asksContainer.innerHTML = asks.map(([price, qty]) => `
+                <div class="orderbook-row">
+                    <span class="orderbook-price ask">${formatPrice(parseFloat(price))}</span>
+                    <span class="orderbook-amount">${formatVolume(parseFloat(qty))}</span>
+                </div>
+            `).join('');
+
+            // Bids (sorted descending)
+            const bids = (data.b || []).slice(0, 10);
+            bidsContainer.innerHTML = bids.map(([price, qty]) => `
+                <div class="orderbook-row">
+                    <span class="orderbook-price bid">${formatPrice(parseFloat(price))}</span>
+                    <span class="orderbook-amount">${formatVolume(parseFloat(qty))}</span>
+                </div>
+            `).join('');
+        }
+
+        // ============================================================
+        // Formatting Helpers
+        // ============================================================
+        function formatPrice(price) {
+            if (price === 0 || !price) return '0.00';
+            if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (price >= 1) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+            if (price >= 0.01) return price.toFixed(4);
+            return price.toFixed(6);
+        }
+
+        function formatVolume(vol) {
+            if (!vol || vol === 0) return '0';
+            if (vol >= 1_000_000) return (vol / 1_000_000).toFixed(2) + 'M';
+            if (vol >= 1_000) return (vol / 1_000).toFixed(2) + 'K';
+            return vol.toFixed(2);
+        }
+
+        // ============================================================
+        // Clear search
+        // ============================================================
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.classList.remove('visible');
+            dropdown.classList.remove('visible');
+            highlightedIndex = -1;
+            searchInput.focus();
+
+            // Disconnect WebSocket
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            if (depthWs) {
+                depthWs.close();
+                depthWs = null;
+            }
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+            }
+
+            // Cleanup chart
+            cleanupChart();
+
+            selectedSymbol = null;
+            noSelection.style.display = 'flex';
+            priceCard.style.display = 'none';
+            chartSection.style.display = 'none';
+            orderbookSection.style.display = 'none';
+            sentimentSection.style.display = 'none';
+
+            wsStatus.className = 'connection-badge disconnected';
+            wsStatus.innerHTML = '<span class="status-dot disconnected"></span><span>No connection</span>';
+            streamInfo.textContent = 'No stream active';
+        });
+
+        // ============================================================
+        // Close dropdown on outside click
+        // ============================================================
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-wrapper')) {
+                dropdown.classList.remove('visible');
+                highlightedIndex = -1;
+            }
+        });
+
+        // ============================================================
+        // Init
+        // ============================================================
+        searchInput.addEventListener('input', handleSearchInput);
+        searchInput.addEventListener('keydown', handleSearchKeydown);
+
+        // Interval selector buttons
+        document.querySelectorAll('.interval-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                changeInterval(btn.dataset.interval);
+            });
+        });
+
+        // ============================================================
+        // Sentiment / News API
+        // ============================================================
+        const sentimentSection = document.getElementById('sentimentSection');
+        const sentimentContent = document.getElementById('sentimentContent');
+        const sentimentGauge = document.getElementById('sentimentGauge');
+        const sentimentLabel = document.getElementById('sentimentLabel');
+        const sentimentScore = document.getElementById('sentimentScore');
+        const sentimentBreakdown = document.getElementById('sentimentBreakdown');
+        const bullishCount = document.getElementById('bullishCount');
+        const neutralCount = document.getElementById('neutralCount');
+        const bearishCount = document.getElementById('bearishCount');
+        const sentimentRefreshBtn = document.getElementById('sentimentRefreshBtn');
+
+        function timeAgo(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            if (diffMins < 1) return 'just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 30) return `${diffDays}d ago`;
+            return date.toLocaleDateString();
+        }
+
+        async function fetchSentiment(symbol) {
+            if (!symbol) return;
+
+            // Show loading state
+            sentimentSection.style.display = 'block';
+            sentimentGauge.className = 'sentiment-gauge loading';
+            sentimentGauge.querySelector('.sentiment-gauge-icon').textContent = '⏳';
+            sentimentLabel.textContent = 'Analyzing...';
+            sentimentScore.textContent = '';
+            sentimentBreakdown.style.display = 'none';
+            sentimentRefreshBtn.disabled = true;
+            sentimentContent.innerHTML = `
+                <div class="sentiment-loading-state">
+                    <div class="spinner"></div>
+                    <span>Scraping news sources & analyzing sentiment...</span>
+                    <span style="font-size:11px;color:var(--text-muted)">Gathering data from CoinDesk, CoinTelegraph, Google News, Reddit</span>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/sentiment/data/?symbol=${encodeURIComponent(symbol)}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                renderSentiment(data);
+            } catch (err) {
+                console.error('Failed to fetch sentiment:', err);
+                sentimentGauge.className = 'sentiment-gauge neutral';
+                sentimentGauge.querySelector('.sentiment-gauge-icon').textContent = '⚠️';
+                sentimentLabel.textContent = 'Could not load';
+                sentimentScore.textContent = '';
+                sentimentBreakdown.style.display = 'none';
+                sentimentContent.innerHTML = `
+                    <div class="news-error">
+                        <strong>Unable to fetch news data</strong><br>
+                        <span style="font-size:12px;opacity:0.8">${err.message}</span>
+                    </div>
+                `;
+            } finally {
+                sentimentRefreshBtn.disabled = false;
+            }
+        }
+
+        function renderSentiment(data) {
+            const sentiment = data.overall_sentiment || { label: 'neutral', score: 50 };
+            const articles = data.articles || [];
+            const redditPosts = data.reddit_posts || [];
+            const hnPosts = data.hn_posts || [];
+            const breakdown = data.breakdown || { bullish: 0, bearish: 0, neutral: 0 };
+
+            // Update gauge
+            const label = sentiment.label;
+            const score = sentiment.score;
+
+            sentimentGauge.className = `sentiment-gauge ${label}`;
+
+            const icons = { bullish: '🚀', bearish: '🔻', neutral: '➖' };
+            const labels = { bullish: 'Bullish', bearish: 'Bearish', neutral: 'Neutral' };
+
+            sentimentGauge.querySelector('.sentiment-gauge-icon').textContent = icons[label] || '➖';
+            sentimentLabel.textContent = labels[label] || 'Neutral';
+            sentimentScore.textContent = score ? `${score.toFixed(1)}/100` : '';
+
+            // Update breakdown
+            sentimentBreakdown.style.display = 'flex';
+            bullishCount.textContent = `🟢 ${breakdown.bullish || 0}`;
+            neutralCount.textContent = `⚪ ${breakdown.neutral || 0}`;
+            bearishCount.textContent = `🔴 ${breakdown.bearish || 0}`;
+
+            // Render content
+            let html = '<div class="sentiment-content">';
+
+            // Left column: News articles
+            html += '<div class="sentiment-column">';
+            html += `<div class="sentiment-column-title">📰 Headlines <span>(${articles.length} articles)</span></div>`;
+
+            if (articles.length === 0) {
+                html += '<div class="news-empty">No recent news found for this asset</div>';
+            } else {
+                articles.forEach(article => {
+                    const sentLabel = article.sentiment?.label || 'neutral';
+                    const sentIcons = { bullish: '🟢', bearish: '🔴', neutral: '⚪' };
+                    html += `
+                        <div class="news-item">
+                            <div class="news-item-header">
+                                <div class="news-item-title">
+                                    <a href="${article.link}" target="_blank" rel="noopener">${escapeHtml(article.title)}</a>
+                                </div>
+                                <span class="news-item-badge ${sentLabel}">${sentIcons[sentLabel]} ${sentLabel}</span>
+                            </div>
+                            <div class="news-item-meta">
+                                <span class="news-item-source">${escapeHtml(article.source)}</span>
+                                <span class="news-item-time">${timeAgo(article.published)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            html += '</div>'; // end left column
+
+            // Right column: Reddit + Hacker News
+            const allDiscussionPosts = [];
+            redditPosts.forEach(p => allDiscussionPosts.push({ ...p, group: 'Reddit' }));
+            hnPosts.forEach(p => allDiscussionPosts.push({ ...p, group: 'Hacker News' }));
+            allDiscussionPosts.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            html += '<div class="sentiment-column">';
+            html += `<div class="sentiment-column-title">💬 Community Discussion <span>(${allDiscussionPosts.length} posts)</span></div>`;
+
+            if (allDiscussionPosts.length === 0) {
+                html += '<div class="news-empty">No community discussions found for this asset</div>';
+            } else {
+                allDiscussionPosts.forEach(post => {
+                    const sentLabel = post.sentiment?.label || 'neutral';
+                    const sentIcons = { bullish: '🟢', bearish: '🔴', neutral: '⚪' };
+                    const isHN = post.group === 'Hacker News';
+                    html += `
+                        <div class="news-item">
+                            <div class="news-item-header">
+                                <div class="news-item-title">
+                                    <a href="${post.link}" target="_blank" rel="noopener">${escapeHtml(post.title)}</a>
+                                </div>
+                                <span class="news-item-badge ${sentLabel}">${sentIcons[sentLabel]}</span>
+                            </div>
+                            <div class="news-item-meta">
+                                <span class="news-item-source">${isHN ? '🟠' : '🔴'} ${escapeHtml(post.source)}</span>
+                                <span class="reddit-score">⬆ ${post.score || 0}</span>
+                                <span class="reddit-comments">💬 ${post.num_comments || 0}</span>
+                                <span class="news-item-time">${timeAgo(post.published)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            html += '</div>'; // end right column
+            html += '</div>'; // end sentiment-content
+
+            sentimentContent.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Override selectPair to also fetch sentiment
+        const originalSelectPair = selectPair;
+        selectPair = function(item) {
+            originalSelectPair(item);
+            fetchSentiment(item.symbol);
+        };
+
+        // Refresh button
+        sentimentRefreshBtn.addEventListener('click', () => {
+            if (selectedSymbol) {
+                fetchSentiment(selectedSymbol.symbol);
+            }
+        });
+
+        // Start loading
+        searchInput.classList.add('loading');
+        fetchSymbols();
+    </script>
+</body>
+</html>
