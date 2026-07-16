@@ -279,6 +279,8 @@
         line-height: 1.5;
         color: #eaecef;
         animation: message-in 0.3s ease-out;
+        overflow: visible;
+        flex-shrink: 0;
     }
 
     @keyframes message-in {
@@ -298,8 +300,10 @@
         border: 1px solid #2b3139;
         border-bottom-left-radius: 4px;
         white-space: normal;
-        overflow-x: hidden;
         word-wrap: break-word;
+        /* No overflow-x: hidden — setting only one overflow axis to non-visible
+           forces the other axis to auto, creating scrollbars on individual bubbles.
+           Letting content expand naturally; .ai-chat-messages handles scrolling. */
     }
 
     /* ── Markdown content within bot messages ─────────────── */
