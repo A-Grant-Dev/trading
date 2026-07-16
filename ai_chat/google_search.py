@@ -294,14 +294,14 @@ def _clean_ai_response(raw_text: str, query: str) -> str | None:
 
     # 4. Remove the Google disclaimer + everything after "Learn more"
     # (the AI response ends before the disclaimer, after which come raw search result snippets)
-    # Also catches variants where only "Learn more" or partial disclaimer is present
-    for pattern in [
-        r"\s*ai responses may include mistakes.*$",
-        r"\s*learn more\s*.*$",
-        r"\s*ai can make mistakes.*$",
-        r"\s*for informational purposes only.*$",
-    ]:
-        text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL)
+    pattern = (
+        r"\s*(?:ai responses may include mistakes"
+        r"|ai can make mistakes"
+        r"|learn more"
+        r"|for informational purposes only"
+        r").*$"
+    )
+    text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL)
 
     # 6. Remove stray "Skip to main content" fragments that may remain
     text = re.sub(
@@ -311,8 +311,10 @@ def _clean_ai_response(raw_text: str, query: str) -> str | None:
         flags=re.IGNORECASE,
     )
 
-    # 7. Compact whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
+    # 7. Normalize whitespace: collapse multiple spaces/tabs within lines,
+    # but PRESERVE newlines (the markdown list regex depends on line breaks).
+    lines = [re.sub(r'[ \t]+', ' ', line) for line in text.split('\n')]
+    text = '\n'.join(line.rstrip() for line in lines if line.strip() or not line)
 
     if len(text) > 8000:
         text = text[:8000] + "..."
