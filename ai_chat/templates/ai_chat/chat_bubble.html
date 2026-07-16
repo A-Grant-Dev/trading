@@ -297,7 +297,106 @@
         background: #1e2329;
         border: 1px solid #2b3139;
         border-bottom-left-radius: 4px;
-        white-space: pre-wrap;
+        white-space: normal;
+        overflow-x: hidden;
+        word-wrap: break-word;
+    }
+
+    /* ── Markdown content within bot messages ─────────────── */
+    .ai-message.bot p {
+        margin: 0 0 8px;
+    }
+    .ai-message.bot p:last-child {
+        margin-bottom: 0;
+    }
+    .ai-message.bot ul,
+    .ai-message.bot ol {
+        margin: 4px 0 8px;
+        padding-left: 20px;
+    }
+    .ai-message.bot ul:last-child,
+    .ai-message.bot ol:last-child {
+        margin-bottom: 0;
+    }
+    .ai-message.bot li {
+        margin-bottom: 3px;
+        list-style-position: outside;
+    }
+    .ai-message.bot li:last-child {
+        margin-bottom: 0;
+    }
+    .ai-message.bot ul li {
+        list-style-type: disc;
+    }
+    .ai-message.bot ul li ul li {
+        list-style-type: circle;
+    }
+    .ai-message.bot ol li {
+        list-style-type: decimal;
+    }
+    .ai-message.bot strong {
+        color: #f0b90b;
+        font-weight: 600;
+    }
+    .ai-message.bot em {
+        color: #b7bdc6;
+        font-style: italic;
+    }
+    .ai-message.bot code {
+        background: #2b3139;
+        color: #0ecb81;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+    .ai-message.bot pre {
+        background: #111318;
+        border: 1px solid #2b3139;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin: 6px 0;
+        overflow-x: auto;
+    }
+    .ai-message.bot pre code {
+        background: none;
+        padding: 0;
+        border-radius: 0;
+        color: #eaecef;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    .ai-message.bot h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #f0b90b;
+        margin: 10px 0 6px;
+    }
+    .ai-message.bot h4 {
+        font-size: 13px;
+        font-weight: 600;
+        color: #eaecef;
+        margin: 8px 0 4px;
+    }
+    .ai-message.bot a {
+        color: #1e80ff;
+        text-decoration: underline;
+        word-break: break-all;
+    }
+    .ai-message.bot a:hover {
+        color: #0ecb81;
+    }
+    .ai-message.bot hr {
+        border: none;
+        border-top: 1px solid #2b3139;
+        margin: 8px 0;
+    }
+    .ai-message.bot blockquote {
+        border-left: 3px solid #1e80ff;
+        padding-left: 10px;
+        margin: 6px 0;
+        color: #848e9c;
+        font-style: italic;
     }
 
     .ai-message.bot .thinking {
@@ -682,11 +781,129 @@
         if (type === 'online') subtitle.classList.add('active');
     }
 
+    // ── Markdown renderer ──────────────────────────────────
+    // Converts markdown text to safe HTML, handling:
+    // bold, italic, lists, code, links, headings, blockquotes, and line breaks.
+    function escapeHtml(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    function renderMarkdown(text) {
+        if (!text) return '';
+
+        // Step 1: HTML-encode the text for XSS safety
+        var html = escapeHtml(text);
+
+        // Step 2: Code blocks (``` ... ```) — must come before inline code
+        html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, function(match, lang, code) {
+            return '<pre><code>' + code.trim() + '</code></pre>';
+        });
+
+        // Step 3: Headings (### / ####)
+        html = html.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+        html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+
+        // Step 4: Horizontal rules
+        html = html.replace(/^---$/gm, '<hr>');
+
+        // Step 5: Blockquotes
+        html = html.replace(/^&gt;\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+
+        // Step 6: Unordered lists — convert lines starting with * or -
+        // We group consecutive list items into <ul> blocks
+        html = html.replace(
+            /(?:^|\n)((?:\* |- ).*?)(?:(?=\n(?!\* |- ))|$)/gs,
+            function(match, block) {
+                var items = block.split('\n').map(function(line) {
+                    line = line.replace(/^(\* |- )\s*/, '');
+                    return '<li>' + line + '</li>';
+                }).join('\n');
+                return '\n<ul>\n' + items + '\n</ul>\n';
+            }
+        );
+
+        // Step 7: Ordered lists — convert lines starting with digits.
+        html = html.replace(
+            /(?:^|\n)((?:\d+\.\s.*?)(?:(?=\n(?!\d+\.\s))|$))/gs,
+            function(match, block) {
+                var items = block.split('\n').map(function(line) {
+                    line = line.replace(/^\d+\.\s*/, '');
+                    return '<li>' + line + '</li>';
+                }).join('\n');
+                return '\n<ol>\n' + items + '\n</ol>\n';
+            }
+        );
+
+        // Step 8: Inline formatting
+        // Bold: **text** or __text__
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+        // Italic: *text* (only if not preceded by alphanum, and followed by non-asterisk)
+        html = html.replace(/(?<!\w)\*(?!\s|\*)(.+?)(?<!\s)\*(?!\w)/g, '<em>$1</em>');
+        html = html.replace(/(?<!\w)_(?!\s)(.+?)(?<!\s)_(?!\w)/g, '<em>$1</em>');
+        // Inline code: `code`
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // Links: [text](url)
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+        // Step 9: Wrap consecutive non-list/non-heading lines in <p> tags
+        // (so plain text gets proper paragraph spacing)
+        var lines = html.split('\n');
+        var result = [];
+        var inParagraph = false;
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) {
+                if (inParagraph) {
+                    result.push('</p>');
+                    inParagraph = false;
+                }
+                continue;
+            }
+            // Skip lines that are already wrapped HTML block elements
+            if (/^<(ul|ol|li|h[34]|pre|blockquote|hr|div)/.test(line) ||
+                /<\/(ul|ol|li|h[34]|pre|blockquote|hr|div)>$/.test(line) ||
+                line === '<br>') {
+                if (inParagraph) {
+                    result.push('</p>');
+                    inParagraph = false;
+                }
+                result.push(line);
+                continue;
+            }
+            if (!inParagraph) {
+                result.push('<p>');
+                inParagraph = true;
+            } else {
+                // Not the first line — add a line break
+                // (we want paragraph for spacing, not br for every line)
+            }
+            result.push(line);
+        }
+        if (inParagraph) {
+            result.push('</p>');
+        }
+
+        html = result.join('\n');
+
+        // Step 10: Clean up excessive blank lines
+        html = html.replace(/\n{3,}/g, '\n\n');
+
+        return html;
+    }
+
     // ── Add message ─────────────────────────────────────
     function addMessage(text, role, modelName, sources, freshness) {
         const div = document.createElement('div');
-        div.className = `ai-message ${role}`;
-        div.textContent = text;
+        div.className = 'ai-message ' + role;
+
+        // Render markdown for bot messages, use textContent for user messages
+        if (role === 'bot') {
+            div.innerHTML = renderMarkdown(text);
+        } else {
+            div.textContent = text;
+        }
 
         const meta = document.createElement('div');
 
@@ -736,7 +953,7 @@
         if (role === 'bot' && modelName) {
             const badge = document.createElement('div');
             badge.className = 'ai-model-badge';
-            badge.innerHTML = `via <span class="chip">${modelName}</span>`;
+            badge.innerHTML = 'via <span class="chip">' + modelName + '</span>';
             meta.appendChild(badge);
         }
 
@@ -828,16 +1045,16 @@
 
     // ── Get CSRF token ─────────────────────────────────
     function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
+        const value = '; ' + document.cookie;
+        const parts = value.split('; ' + name + '=');
         if (parts.length === 2) return parts.pop().split(';').shift();
         return '';
     }
 
     // ── Event listeners ─────────────────────────────────
-    sendBtn.addEventListener('click', () => sendMessage(input.value.trim()));
+    sendBtn.addEventListener('click', function() { sendMessage(input.value.trim()); });
 
-    input.addEventListener('keydown', (e) => {
+    input.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage(input.value.trim());
@@ -845,8 +1062,8 @@
     });
 
     // ── Suggestion chips ───────────────────────────────
-    suggestions.addEventListener('click', (e) => {
-        const chip = e.target.closest('.ai-suggestion-chip');
+    suggestions.addEventListener('click', function(e) {
+        var chip = e.target.closest('.ai-suggestion-chip');
         if (chip) {
             sendMessage(chip.dataset.prompt);
         }

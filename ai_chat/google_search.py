@@ -152,7 +152,7 @@ def _try_chromium(query: str) -> dict:
             pass
 
         # Extract the AI response
-        response_text = _extract_ai_response(page)
+        response_text = _extract_ai_response(page, query)
         if response_text:
             sources = _extract_sources(page)
             return {"response": response_text, "sources": sources[:10], "success": True, "engine": "chromium"}
@@ -228,7 +228,7 @@ def _try_firefox(query: str) -> dict:
             _firefox_failed_at = time.time()
             return {"response": "", "sources": [], "success": False, "engine": "firefox"}
 
-        response_text = _extract_ai_response(page)
+        response_text = _extract_ai_response(page, query)
         if response_text:
             sources = _extract_sources(page)
             return {"response": response_text, "sources": sources[:10], "success": True, "engine": "firefox"}
@@ -255,13 +255,109 @@ def _try_firefox(query: str) -> dict:
             except Exception: pass
 
 
-def _extract_ai_response(page) -> str | None:
-    """Extract the AI Overview response text from the page."""
+def _clean_ai_response(raw_text: str, query: str) -> str | None:
+    """
+    Clean the raw AI Mode response text by removing Google boilerplate,
+    repeated query text, disclaimers, and search result snippets.
+    """
+    if not raw_text or len(raw_text) < 30:
+        return None
+
+    text = raw_text
+    escaped_query = re.escape(query.lower())
+
+    # 1. Remove "Skip to main content Accessibility help AI Mode Conversation: <query>" prefix
+    # This appears at the very start of the page body text
+    text = re.sub(
+        r"^.*?ai mode conversation:.*?" + escaped_query,
+        "",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+    # 2. Remove the repeated query that follows right after the prefix
+    # (Google echoes the query back twice: once in the header, once as a heading)
+    text = re.sub(
+        r"^\s*" + escaped_query + r"\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # 3. Remove "AI Mode response is ready" suffix (footer text)
+    text = re.sub(
+        r"\s*ai mode response is ready\s*$",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # 4. Remove the Google disclaimer + everything after "Learn more"
+    # (the AI response ends before the disclaimer, after which come raw search result snippets)
+    # Also catches variants where only "Learn more" or partial disclaimer is present
+    for pattern in [
+        r"\s*ai responses may include mistakes.*$",
+        r"\s*learn more\s*.*$",
+        r"\s*ai can make mistakes.*$",
+        r"\s*for informational purposes only.*$",
+    ]:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL)
+
+    # 6. Remove stray "Skip to main content" fragments that may remain
+    text = re.sub(
+        r"skip to main content accessibility help",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # 7. Compact whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    if len(text) > 8000:
+        text = text[:8000] + "..."
+
+    if len(text) > 30:
+        return text
+    return None
+
+
+def _extract_ai_response(page, query: str = "") -> str | None:
+    """
+    Extract the AI Overview response text from the page and clean it.
+    Uses a multi-strategy approach to find the AI response content.
+    """
     try:
         body = page.inner_text("body")
         if not body:
             return None
 
+        # ── Strategy 1: Try to find the AI overview container directly ──
+        # Google AI Mode often uses specific selectors for the overview
+        try:
+            # Common Google AI Overview selectors (try multiple)
+            selectors = [
+                "div[data-attrid='ai_ov']",
+                "div[class*='ai-o']",
+                "div[class*='overview']",
+                "div[class*='answer']",
+                "div[role='heading']",
+            ]
+            for selector in selectors:
+                try:
+                    element = page.query_selector(selector)
+                    if element:
+                        text = element.inner_text()
+                        if len(text) > 30:
+                            cleaned = _clean_ai_response(text, query)
+                            if cleaned:
+                                return cleaned
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # ── Strategy 2: Extract meaningful lines from the full body ──
         lines = [l.strip() for l in body.split("\n")]
         meaningful = [
             l for l in lines
@@ -272,14 +368,18 @@ def _extract_ai_response(page) -> str | None:
             and "sign in" not in l.lower()
             and "accept all" not in l.lower()
         ]
+
         if meaningful:
             combined = " ".join(meaningful[:60])
             combined = re.sub(r'\s+', ' ', combined).strip()
-            if len(combined) > 8000:
-                combined = combined[:8000] + "..."
-            if len(combined) > 50:
-                return combined
-        return None
+            cleaned = _clean_ai_response(combined, query)
+            if cleaned:
+                return cleaned
+
+        # ── Strategy 3: Raw body with cleaning as last resort ──
+        cleaned = _clean_ai_response(body, query)
+        return cleaned
+
     except Exception:
         return None
 
