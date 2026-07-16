@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'charts',
     'portfolio',
     'sentiment',
+    'ai_chat',
 ]
 
 MIDDLEWARE = [
@@ -118,3 +119,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Google Gemini AI API Key
+# Get your free API key at: https://aistudio.google.com/apikey
+import os
+from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env')
+
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY', '')
