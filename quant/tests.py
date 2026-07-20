@@ -22,6 +22,8 @@ from quant.services.data_utils import (
     add_technical_indicators,
 )
 from quant.services.hmm_regime import MarketRegimeDetector, build_hmm_features
+from quant.services.cointegration import PairsFinder, fetch_daily_close_prices
+from quant.services.pairs_signals import PairsSignalGenerator
 from quant.services.regime_signals import (
     REGIME_WEIGHTS,
     adjust_signal_for_regime,
@@ -369,3 +371,205 @@ class RegimeSignalTests(TestCase):
         base = {"direction": "long", "strength": 0.8, "confidence": 0.7}
         result = combine_regime_with_signal(base, "volatile", 0.9)
         self.assertEqual(result["recommendation"], "avoid")
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Phase 2 — Cointegration & Pairs Trading Tests
+# ══════════════════════════════════════════════════════════════════
+
+
+class PairsFinderTests(TestCase):
+    """Test PairsFinder cointegration discovery and statistics."""
+
+    def setUp(self):
+        # Create two synthetically cointegrated price series
+        np.random.seed(42)
+        n = 200
+        # Random walk for the 'base' series
+        base = 100 + np.cumsum(np.random.randn(n) * 0.3)
+        # Series B follows series A with noise (cointegrated)
+        series_a = base + np.random.randn(n) * 0.1
+        series_b = base * 0.5 + 50 + np.random.randn(n) * 0.1  # hedge_ratio ~0.5
+
+        dates = pd.date_range(start="2025-01-01", periods=n, freq="1h", tz="UTC")
+        self.price_data = {
+            "BTCUSDT": pd.Series(series_a, index=dates),
+            "ETHUSDT": pd.Series(series_b, index=dates),
+        }
+
+        # Non-cointegrated series (random walks)
+        series_c = 100 + np.cumsum(np.random.randn(n) * 0.3)
+        series_d = 200 + np.cumsum(np.random.randn(n) * 0.5)
+        self.price_data["SOLUSDT"] = pd.Series(series_c, index=dates)
+        self.price_data["XRPUSDT"] = pd.Series(series_d, index=dates)
+
+    def test_find_cointegrated_pairs_discovers_relationship(self):
+        """Should find the cointegrated pair BTCUSDT/ETHUSDT."""
+        finder = PairsFinder(["BTCUSDT", "ETHUSDT"])
+        results = finder.find_cointegrated_pairs(self.price_data, p_threshold=0.1)
+
+        self.assertGreater(len(results), 0)
+        pair = results[0]
+        self.assertIn(pair["symbol_a"], ["BTCUSDT", "ETHUSDT"])
+        self.assertIn(pair["symbol_b"], ["BTCUSDT", "ETHUSDT"])
+        self.assertLessEqual(pair["p_value"], 0.1)
+        self.assertIsNotNone(pair.get("hedge_ratio"))
+        self.assertIsNotNone(pair.get("current_zscore"))
+
+    def test_find_cointegrated_pairs_empty_data(self):
+        """Should raise ValueError with empty price data."""
+        finder = PairsFinder(["BTCUSDT"])
+        with self.assertRaises(ValueError):
+            finder.find_cointegrated_pairs({})
+
+    def test_find_cointegrated_pairs_no_relationship(self):
+        """Should not find relationships where none exist."""
+        finder = PairsFinder(["SOLUSDT", "XRPUSDT"])
+        results = finder.find_cointegrated_pairs(self.price_data, p_threshold=0.01)
+        # Two random walks should not be cointegrated at p<0.01
+        self.assertEqual(len(results), 0)
+
+    def test_compute_half_life(self):
+        """Half-life computation should return a positive value for mean-reverting spread."""
+        # Create a clearly mean-reverting spread (oscillating around 0)
+        np.random.seed(42)
+        n = 200
+        # AR(1) with strong mean reversion: theta ~ 0.8 → half_life < 1
+        errors = np.random.randn(n) * 0.5
+        spread_ar = np.zeros(n)
+        spread_ar[0] = errors[0]
+        for i in range(1, n):
+            spread_ar[i] = 0.2 * spread_ar[i-1] + errors[i]
+        half_life = PairsFinder.compute_half_life(spread_ar)
+        self.assertIsNotNone(half_life)
+        self.assertGreater(half_life, 0)
+        # With theta = 0.8 (since coefficient = (1 - 0.8) = 0.2), half_life < 5
+        self.assertLess(half_life, 5)
+
+    def test_compute_half_life_insufficient_data(self):
+        """Half-life should return None with too few data points."""
+        result = PairsFinder.compute_half_life(np.array([1.0, 2.0]))
+        self.assertIsNone(result)
+
+    def test_compute_zscore(self):
+        """Z-score should be computed correctly."""
+        spread = np.array([10.0, 11.0, 12.0, 13.0, 14.0, 15.0])
+        z = PairsFinder.compute_zscore(spread)
+        # Last value (15) should be above the mean
+        self.assertGreater(z, 0)
+
+    def test_compute_zscore_constant(self):
+        """Z-score should be 0 for constant spread."""
+        spread = np.array([10.0, 10.0, 10.0, 10.0])
+        z = PairsFinder.compute_zscore(spread)
+        self.assertEqual(z, 0.0)
+
+    def test_compute_zscore_single_value(self):
+        """Z-score should be 0 for single value."""
+        z = PairsFinder.compute_zscore(np.array([10.0]))
+        self.assertEqual(z, 0.0)
+
+
+class PairsSignalGeneratorTests(TestCase):
+    """Test PairsSignalGenerator entry/exit logic and backtesting."""
+
+    def setUp(self):
+        self.generator = PairsSignalGenerator(
+            entry_z=2.0,
+            exit_z=0.5,
+            stop_z=3.0,
+        )
+
+        # Create synthetic pair data for backtesting
+        np.random.seed(42)
+        n = 500
+
+        # Cointegrated pair with noise
+        base = 100 + np.cumsum(np.random.randn(n) * 0.2)
+        a = base + np.random.randn(n) * 0.5
+        b = base * 0.8 + 20 + np.random.randn(n) * 0.5
+
+        dates = pd.date_range(start="2025-01-01", periods=n, freq="1h", tz="UTC")
+        self.historical_data = pd.DataFrame({
+            "ASSETUSDT": a,
+            "BSSETUSDT": b,
+        }, index=dates)
+
+        self.pair_data = {
+            "symbol_a": "ASSETUSDT",
+            "symbol_b": "BSSETUSDT",
+            "hedge_ratio": 0.8,
+        }
+
+    def test_backtest_pair_returns_results(self):
+        """Backtest should return a complete result dict."""
+        results = self.generator.backtest_pair(
+            self.pair_data,
+            self.historical_data,
+        )
+
+        self.assertIn("total_trades", results)
+        self.assertIn("winning_trades", results)
+        self.assertIn("losing_trades", results)
+        self.assertIn("win_rate", results)
+        self.assertIn("sharpe_ratio", results)
+        self.assertIn("trades", results)
+
+    def test_backtest_pair_empty_data(self):
+        """Backtest with empty data should return error."""
+        results = self.generator.backtest_pair(self.pair_data, pd.DataFrame())
+        self.assertIn("error", results)
+
+    def test_backtest_pair_single_column(self):
+        """Backtest with single column should return error."""
+        single = pd.DataFrame({"A": [1, 2, 3]})
+        results = self.generator.backtest_pair(self.pair_data, single)
+        self.assertIn("error", results)
+
+    def test_zscore_computation(self):
+        """Z-score computation should work with the helper."""
+        spread = pd.Series([10.0, 12.0, 15.0, 11.0, 9.0, 14.0, 13.0, 10.0])
+        z = PairsSignalGenerator._compute_zscore(spread)
+        self.assertIsInstance(z, float)
+
+    def test_compute_half_life_from_spread(self):
+        """Should compute a reasonable half-life from a pair's spread."""
+        # Compute spread from the historical data
+        spread = (
+            self.historical_data["ASSETUSDT"].values
+            - 0.8 * self.historical_data["BSSETUSDT"].values
+        )
+        half_life = PairsFinder.compute_half_life(spread)
+        # Half-life should be reasonable (between 1 and 1000 periods)
+        if half_life is not None:
+            self.assertGreater(half_life, 0)
+            self.assertLess(half_life, 1000)
+
+    def test_compute_zscore_from_series(self):
+        """_compute_zscore should return correct values for a spread series."""
+        spread = pd.Series([10.0, 12.0, 15.0, 11.0, 9.0, 14.0, 13.0, 10.0])
+        z = PairsSignalGenerator._compute_zscore(spread)
+        self.assertIsInstance(z, float)
+        # Last value (10.0) is near the mean, so z should be close to 0
+        self.assertAlmostEqual(z, 0.0, delta=2.0)
+
+    def test_backtest_pair_metrics(self):
+        """Backtest metrics should be internally consistent."""
+        results = self.generator.backtest_pair(
+            self.pair_data,
+            self.historical_data,
+        )
+
+        if results.get("total_trades", 0) > 0:
+            # Win rate should be between 0 and 1
+            self.assertGreaterEqual(results["win_rate"], 0.0)
+            self.assertLessEqual(results["win_rate"], 1.0)
+
+            # Total trades should equal winning + losing
+            self.assertEqual(
+                results["total_trades"],
+                results["winning_trades"] + results["losing_trades"],
+            )
+
+            # Max drawdown should be non-negative
+            self.assertGreaterEqual(results["max_drawdown"], 0.0)
