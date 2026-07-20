@@ -1,0 +1,477 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quant Dashboard — Renaissance Trading</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+
+        /* ── Header ─────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #161b22, #0d1117);
+            border-bottom: 1px solid #30363d;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #f0f6fc;
+        }
+        .header .subtitle {
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 2px;
+        }
+        .header .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-badge.on { background: #1a7f37; color: #fff; }
+        .status-badge.off { background: #da3633; color: #fff; }
+        .status-badge.paper { background: #d29922; color: #fff; }
+
+        /* ── Grid Layout ────────────────────────────── */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 16px;
+            padding: 16px 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* ── Cards ──────────────────────────────────── */
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .card-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* ── Regime Banner ──────────────────────────── */
+        .regime-banner {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #161b22, #1c2333);
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .regime-label {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .regime-label .emoji { margin-right: 8px; }
+        .regime-label .label.ranging { color: #8b949e; }
+        .regime-label .label.bullish { color: #3fb950; }
+        .regime-label .label.bearish { color: #f85149; }
+        .regime-label .label.volatile { color: #d29922; }
+        .regime-label .label.unknown { color: #8b949e; }
+        .regime-desc { color: #8b949e; font-size: 13px; max-width: 500px; }
+        .regime-conf {
+            font-size: 13px;
+            color: #8b949e;
+        }
+        .regime-conf strong { color: #e6edf3; }
+
+        /* ── Metric Rows ────────────────────────────── */
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #21262d;
+            font-size: 14px;
+        }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-label { color: #8b949e; }
+        .metric-value { font-weight: 600; color: #f0f6fc; }
+        .metric-value.positive { color: #3fb950; }
+        .metric-value.negative { color: #f85149; }
+        .metric-value.neutral { color: #d29922; }
+
+        /* ── Tables ─────────────────────────────────── */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th {
+            text-align: left;
+            padding: 8px 6px;
+            color: #8b949e;
+            font-weight: 500;
+            border-bottom: 1px solid #30363d;
+        }
+        td {
+            padding: 8px 6px;
+            border-bottom: 1px solid #21262d;
+        }
+        tr:last-child td { border-bottom: none; }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .pill.long { background: #1a7f3733; color: #3fb950; }
+        .pill.short { background: #da363333; color: #f85149; }
+        .pill.neutral { background: #8b949e33; color: #8b949e; }
+        .pill .dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .pill.long .dot { background: #3fb950; }
+        .pill.short .dot { background: #f85149; }
+        .pill.neutral .dot { background: #8b949e; }
+
+        /* ── Loading state ──────────────────────────── */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            color: #8b949e;
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #30363d;
+            border-top-color: #58a6ff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Responsive ─────────────────────────────── */
+        @media (max-width: 768px) {
+            .dashboard-grid { grid-template-columns: 1fr; padding: 12px; }
+            .header { flex-direction: column; gap: 8px; align-items: flex-start; }
+            .regime-banner { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h1>🧠 Quant Trading Dashboard</h1>
+            <div class="subtitle">Renaissance-Inspired Systematic Trading Engine</div>
+        </div>
+        <div>
+            {% if config.mode == 'live' and config.is_enabled %}
+                <span class="status-badge on">● LIVE TRADING</span>
+            {% elif config.mode == 'paper' %}
+                <span class="status-badge paper">● PAPER TRADING</span>
+            {% else %}
+                <span class="status-badge off">● BACKTEST ONLY</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div class="dashboard-grid">
+        <!-- Regime Banner (loaded via JS) -->
+        <div class="regime-banner" id="regime-banner">
+            <div class="loading"><div class="spinner"></div> Loading regime data...</div>
+        </div>
+
+        <!-- Portfolio Card -->
+        <div class="card" id="portfolio-card">
+            <div class="card-header">📊 Portfolio</div>
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+
+        <!-- Active Signals Card -->
+        <div class="card" id="signals-card">
+            <div class="card-header">📡 Active Signals</div>
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+
+        <!-- Recent Trades Card -->
+        <div class="card" id="trades-card">
+            <div class="card-header">🔄 Recent Trades</div>
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+
+        <!-- Pairs Card -->
+        <div class="card" id="pairs-card">
+            <div class="card-header">🔗 Cointegrated Pairs</div>
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+
+        <!-- Performance Card -->
+        <div class="card" id="performance-card">
+            <div class="card-header">📈 Performance (30d)</div>
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        // ── Fetch & Render ───────────────────────────────────────
+
+        async function fetchJSON(url) {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            return resp.json();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ── Regime Banner ────────────────────────────────────────
+
+        async function renderRegime() {
+            const el = document.getElementById('regime-banner');
+            try {
+                const data = await fetchJSON('/quant/api/regime/');
+                // Find the first symbol with data
+                const symbols = Object.keys(data);
+                if (symbols.length === 0) {
+                    el.innerHTML = '<div style="color:#8b949e">⚠️ No regime data available. Run <code>python manage.py update_regime</code> to train the HMM.</div>';
+                    return;
+                }
+
+                const symbol = symbols[0];
+                const regime = data[symbol];
+                const label = regime.regime_label || 'unknown';
+                const conf = (regime.top_probability * 100).toFixed(1);
+                const emojis = { 'ranging': '➖', 'bullish': '🟢', 'bearish': '🔴', 'volatile': '🟡' };
+                const emoji = emojis[label] || '❓';
+
+                let html = `
+                    <div>
+                        <div class="regime-label">
+                            <span class="emoji">${emoji}</span>
+                            <span class="label ${label}">${label.toUpperCase()}</span>
+                        </div>
+                        <div class="regime-desc">${regime.regime_info?.[regime.regime_id]?.description || 'No description'}</div>
+                    </div>
+                    <div class="regime-conf">
+                        Confidence: <strong>${conf}%</strong>
+                        &middot; Symbol: <strong>${symbol}</strong>
+                        &middot; Data: <strong>${regime.data_points || '?'} candles</strong>
+                    </div>
+                `;
+                el.innerHTML = html;
+            } catch (e) {
+                el.innerHTML = `<div style="color:#f85149">⚠️ Failed to load regime: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        // ── Portfolio ────────────────────────────────────────────
+
+        async function renderPortfolio() {
+            const el = document.getElementById('portfolio-card');
+            try {
+                const data = await fetchJSON('/quant/api/portfolio/');
+                const pnlClass = data.daily_pnl >= 0 ? 'positive' : 'negative';
+                el.innerHTML = `
+                    <div class="card-header">📊 Portfolio</div>
+                    <div class="metric-row">
+                        <span class="metric-label">Mode</span>
+                        <span class="metric-value">${data.mode.toUpperCase()}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Balance</span>
+                        <span class="metric-value">$${data.virtual_balance.toLocaleString()}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Open Positions</span>
+                        <span class="metric-value">${data.open_positions} / ${data.max_open_positions}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Daily P&L</span>
+                        <span class="metric-value ${pnlClass}">${data.daily_pnl >= 0 ? '+' : ''}$${data.daily_pnl.toLocaleString()}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Win Rate (30d)</span>
+                        <span class="metric-value">${(data.win_rate_30d * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Trades (30d)</span>
+                        <span class="metric-value">${data.total_trades_30d}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Kelly Fraction</span>
+                        <span class="metric-value">${data.kelly_fraction}</span>
+                    </div>
+                `;
+            } catch (e) {
+                el.innerHTML = `<div class="card-header">📊 Portfolio</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        // ── Active Signals ───────────────────────────────────────
+
+        async function renderSignals() {
+            const el = document.getElementById('signals-card');
+            try {
+                const data = await fetchJSON('/quant/api/signals/');
+                if (data.count === 0) {
+                    el.innerHTML = `<div class="card-header">📡 Active Signals</div><div style="padding:12px;color:#8b949e;">No active signals.</div>`;
+                    return;
+                }
+                let rows = data.signals.slice(0, 10).map(s => `
+                    <tr>
+                        <td><span class="pill ${s.direction || 'neutral'}"><span class="dot"></span>${(s.direction || s.signal_type).toUpperCase()}</span></td>
+                        <td>${escapeHtml(s.symbol || s.pair || '—')}</td>
+                        <td>${(s.confidence * 100).toFixed(0)}%</td>
+                        <td>${s.source_model}</td>
+                        <td>${new Date(s.expiry).toLocaleTimeString()}</td>
+                    </tr>
+                `).join('');
+                el.innerHTML = `
+                    <div class="card-header">📡 Active Signals <span style="font-weight:400;color:#8b949e;">${data.count} total</span></div>
+                    <table><thead><tr><th>Signal</th><th>Symbol</th><th>Conf</th><th>Source</th><th>Expiry</th></tr></thead><tbody>${rows}</tbody></table>
+                `;
+            } catch (e) {
+                el.innerHTML = `<div class="card-header">📡 Active Signals</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        // ── Recent Trades ────────────────────────────────────────
+
+        async function renderTrades() {
+            const el = document.getElementById('trades-card');
+            try {
+                const data = await fetchJSON('/quant/api/trades/recent/');
+                if (data.count === 0) {
+                    el.innerHTML = `<div class="card-header">🔄 Recent Trades</div><div style="padding:12px;color:#8b949e;">No trades yet.</div>`;
+                    return;
+                }
+                let rows = data.trades.slice(0, 10).map(t => {
+                    const pnlClass = t.pnl >= 0 ? 'positive' : 'negative';
+                    const time = new Date(t.entry_time).toLocaleTimeString();
+                    return `
+                        <tr>
+                            <td>${time}</td>
+                            <td>${escapeHtml(t.symbol)}</td>
+                            <td><span class="pill ${t.side}"><span class="dot"></span>${t.side.toUpperCase()}</span></td>
+                            <td>$${t.entry_price.toLocaleString()}</td>
+                            <td class="${pnlClass}">${t.pnl ? (t.pnl >= 0 ? '+' : '') + '$' + t.pnl.toLocaleString() : '—'}</td>
+                            <td>${escapeHtml(t.strategy || '—')}</td>
+                        </tr>
+                    `;
+                }).join('');
+                el.innerHTML = `
+                    <div class="card-header">🔄 Recent Trades <span style="font-weight:400;color:#8b949e;">last ${data.count}</span></div>
+                    <table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>P&L</th><th>Strategy</th></tr></thead><tbody>${rows}</tbody></table>
+                `;
+            } catch (e) {
+                el.innerHTML = `<div class="card-header">🔄 Recent Trades</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        // ── Pairs ────────────────────────────────────────────────
+
+        async function renderPairs() {
+            const el = document.getElementById('pairs-card');
+            try {
+                const data = await fetchJSON('/quant/api/pairs/');
+                if (data.count === 0) {
+                    el.innerHTML = `<div class="card-header">🔗 Cointegrated Pairs</div><div style="padding:12px;color:#8b949e;">No pairs discovered yet. Run <code>python manage.py discover_pairs</code>.</div>`;
+                    return;
+                }
+                let rows = data.pairs.slice(0, 8).map(p => {
+                    const zClass = Math.abs(p.current_zscore || 0) > 2 ? 'positive' : 'neutral';
+                    return `
+                        <tr>
+                            <td>${escapeHtml(p.symbol_a)}/${escapeHtml(p.symbol_b)}</td>
+                            <td>${p.coint_p_value ? p.coint_p_value.toFixed(4) : '—'}</td>
+                            <td>${p.half_life ? p.half_life.toFixed(1) + 'h' : '—'}</td>
+                            <td class="${zClass}">${p.current_zscore ? p.current_zscore.toFixed(2) : '—'}</td>
+                            <td>${p.win_rate ? (p.win_rate * 100).toFixed(0) + '%' : '—'}</td>
+                        </tr>
+                    `;
+                }).join('');
+                el.innerHTML = `
+                    <div class="card-header">🔗 Cointegrated Pairs <span style="font-weight:400;color:#8b949e;">${data.count} active</span></div>
+                    <table><thead><tr><th>Pair</th><th>P-Value</th><th>Half-Life</th><th>Z-Score</th><th>Win Rate</th></tr></thead><tbody>${rows}</tbody></table>
+                `;
+            } catch (e) {
+                el.innerHTML = `<div class="card-header">🔗 Cointegrated Pairs</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        // ── Performance ──────────────────────────────────────────
+
+        async function renderPerformance() {
+            const el = document.getElementById('performance-card');
+            try {
+                const data = await fetchJSON('/quant/api/performance/');
+                let stratRows = data.strategies.map(s => {
+                    const wrPct = (s.win_rate * 100).toFixed(1);
+                    return `
+                        <tr>
+                            <td>${escapeHtml(s.strategy)}</td>
+                            <td>${s.total_trades}</td>
+                            <td>${wrPct}%</td>
+                            <td>${s.sharpe_ratio || '—'}</td>
+                        </tr>
+                    `;
+                }).join('');
+                el.innerHTML = `
+                    <div class="card-header">📈 Performance (30d)</div>
+                    <table><thead><tr><th>Strategy</th><th>Trades</th><th>Win Rate</th><th>Sharpe</th></tr></thead><tbody>${stratRows || '<tr><td colspan="4" style="color:#8b949e;">No performance data yet.</td></tr>'}</tbody></table>
+                `;
+            } catch (e) {
+                el.innerHTML = `<div class="card-header">📈 Performance (30d)</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        // ── Initial Load ─────────────────────────────────────────
+
+        renderRegime();
+        renderPortfolio();
+        renderSignals();
+        renderTrades();
+        renderPairs();
+        renderPerformance();
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            renderRegime();
+            renderPortfolio();
+            renderSignals();
+            renderTrades();
+        }, 30000);
+
+        setInterval(() => {
+            renderPairs();
+            renderPerformance();
+        }, 300000); // Pairs & performance refresh slower (5 min)
+    </script>
+</body>
+</html>

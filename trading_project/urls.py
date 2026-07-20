@@ -24,4 +24,5 @@ urlpatterns = [
     path('sentiment/', include('sentiment.urls')),
     path('ai-chat/', include('ai_chat.urls')),
     path('orderbook/', include('orderbook.urls')),
+    path('quant/', include('quant.urls')),
 ]
