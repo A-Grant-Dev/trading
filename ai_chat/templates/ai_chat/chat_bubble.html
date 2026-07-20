@@ -530,11 +530,104 @@
         background: rgba(30, 128, 255, 0.08);
     }
 
+    /* ── Browser mode toggle ────────────────────────────── */
+    .ai-browser-toggle {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid #2b3139;
+        background: transparent;
+        color: #5e6673;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        flex-shrink: 0;
+        position: relative;
+    }
+
+    .ai-browser-toggle:hover {
+        background: #2b3139;
+        color: #848e9c;
+        border-color: #1e80ff;
+    }
+
+    .ai-browser-toggle.active {
+        background: rgba(30, 128, 255, 0.15);
+        border-color: #1e80ff;
+        color: #1e80ff;
+        box-shadow: 0 0 12px rgba(30, 128, 255, 0.15);
+    }
+
+    .ai-browser-toggle .tooltip {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e2329;
+        border: 1px solid #2b3139;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 11px;
+        color: #848e9c;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .ai-browser-toggle:hover .tooltip {
+        opacity: 1;
+    }
+
+    .ai-browser-toggle .tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 5px solid transparent;
+        border-top-color: #2b3139;
+    }
+
+    /* Browser mode active indicator bar */
+    .ai-browser-bar {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        background: rgba(30, 128, 255, 0.08);
+        border-bottom: 1px solid rgba(30, 128, 255, 0.15);
+        font-size: 11px;
+        color: #1e80ff;
+        flex-shrink: 0;
+        animation: bar-slide 0.25s ease-out;
+    }
+
+    .ai-browser-bar.visible {
+        display: flex;
+    }
+
+    .ai-browser-bar .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #1e80ff;
+        animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+
+    @keyframes bar-slide {
+        from { opacity: 0; max-height: 0; }
+        to { opacity: 1; max-height: 30px; }
+    }
+
     /* ── Input ───────────────────────────────────────────── */
     .ai-chat-input-area {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         padding: 12px 16px;
         border-top: 1px solid #2b3139;
         background: #1e2329;
@@ -673,7 +766,17 @@
     </div>
 
     <!-- Input -->
+    <!-- Browser mode active indicator -->
+    <div class="ai-browser-bar" id="aiBrowserBar">
+        <span class="dot"></span>
+        <span>Using your browser for Google AI Mode — a new tab will open</span>
+    </div>
+
     <div class="ai-chat-input-area">
+        <button class="ai-browser-toggle" id="aiBrowserToggle" title="Use your browser for Google AI Mode">
+            🌐
+            <span class="tooltip">Use browser for Google AI Mode</span>
+        </button>
         <input
             type="text"
             class="ai-chat-input"
@@ -710,9 +813,12 @@
     const bannerReason = document.getElementById('aiBannerReason');
     const bannerIcon = document.getElementById('aiBannerIcon');
     const bannerDismiss = document.getElementById('aiBannerDismiss');
+    const browserToggle = document.getElementById('aiBrowserToggle');
+    const browserBar = document.getElementById('aiBrowserBar');
     let bannerDismissed = false;
     let isOpen = false;
     let isLoading = false;
+    let useBrowser = false;
 
     // ── Toggle chat window ──────────────────────────────
     function toggleChat(open) {
@@ -1004,6 +1110,22 @@
         }
     }
 
+    // ── Browser toggle ─────────────────────────────────
+    function toggleBrowserMode() {
+        useBrowser = !useBrowser;
+        if (useBrowser) {
+            browserToggle.classList.add('active');
+            browserToggle.title = 'Using your browser for Google AI Mode';
+            browserBar.classList.add('visible');
+        } else {
+            browserToggle.classList.remove('active');
+            browserToggle.title = 'Use your browser for Google AI Mode';
+            browserBar.classList.remove('visible');
+        }
+    }
+
+    browserToggle.addEventListener('click', toggleBrowserMode);
+
     // ── Send message to API ─────────────────────────────
     async function sendMessage(message) {
         if (!message || isLoading) return;
@@ -1019,8 +1141,29 @@
         // Show typing indicator
         showTyping(true);
 
+        // Visual feedback for browser mode
+        if (useBrowser) {
+            setStatus('loading', '🌐 Opening browser...');
+        }
+
+        // ── For browser mode, open the tab NOW (synchronously, before fetch)
+        // ── This avoids the popup blocker which blocks window.open() in async callbacks.
+        let googleTab = null;
+        if (useBrowser) {
+            const googleUrl = 'https://www.google.com/search?q='
+                + encodeURIComponent(message) + '&udm=50';
+            googleTab = window.open(googleUrl, '_blank');
+            // Try to keep focus on the chat window
+            if (googleTab) {
+                try { window.focus(); } catch(e) {}
+            }
+        }
+
+        // Choose endpoint based on mode
+        const endpoint = useBrowser ? '/ai-chat/browser-chat/' : '/ai-chat/chat/';
+
         try {
-            const response = await fetch('/ai-chat/chat/', {
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1030,27 +1173,77 @@
             });
 
             const data = await response.json();
-            const aiResponse = data.response || 'Sorry, I got an empty response.';
-            const modelName = data.model || null;
-            const sources = data.sources || [];
             const success = data.success || false;
-            const freshness = data.freshness || (sources.length > 0 ? 'real_time' : 'knowledge_base');
 
-            // Update model info banner
-            updateModelInfo(data.model_info);
+            if (useBrowser) {
+                // ── Browser-chat response format ─────────────
+                const aiResponse = data.response || 'Sorry, I got an empty response.';
+                const note = data.note || null;
 
-            // Replace typing indicator with response
-            showTyping(false);
+                // Tab was already opened before the fetch (to avoid popup blocker)
+                // If popup was blocked, tell the user
+                if (!googleTab) {
+                    let altUrl = 'https://www.google.com/search?q='
+                        + encodeURIComponent(message) + '&udm=50';
+                    setStatus('loading', '🌐 Popup blocked — click link below');
+                    // Use markdown link syntax (renderMarkdown escapes HTML, but handles [text](url))
+                    var linkMsg = '⚠️ Popup was blocked. '
+                        + '[Click here to open Google AI Mode manually]('
+                        + altUrl + ')';
+                    addMessage(linkMsg, 'bot');
+                }
 
-            if (success) {
-                addMessage(aiResponse, 'bot', modelName, sources, freshness);
-                // Update header subtitle with current model
-                if (modelName) {
-                    setStatus('online', modelName);
+                // Update status while waiting
+                setStatus('loading', '🌐 Waiting for AI response in browser...');
+
+                // Replace typing indicator with response
+                showTyping(false);
+
+                if (success) {
+                    addMessage(aiResponse, 'bot', 'Google AI Mode');
+                    setStatus('online', '🌐 Google AI Mode');
+
+                    // If there's a note, show it in the banner
+                    if (note) {
+                        updateModelInfo({
+                            status: 'ok',
+                            message: note,
+                            used: 'Google AI Mode',
+                            grounding: true,
+                        });
+                    }
+                } else {
+                    // Even on CDP failure, the tab is open so user can see the result
+                    var fallbackMsg = aiResponse;
+                    if (aiResponse.length < 50) {
+                        fallbackMsg += '\n\n*A tab opened with Google AI Mode where you can view the result.*';
+                    }
+                    addMessage(fallbackMsg, 'bot');
+                    setStatus('offline', '🌐 Browser mode');
                 }
             } else {
-                addMessage(aiResponse, 'bot');
-                setStatus('offline', 'Error');
+                // ── Gemini API response format ─────────────
+                const aiResponse = data.response || 'Sorry, I got an empty response.';
+                const modelName = data.model || null;
+                const sources = data.sources || [];
+                const freshness = data.freshness || (sources.length > 0 ? 'real_time' : 'knowledge_base');
+
+                // Update model info banner
+                updateModelInfo(data.model_info);
+
+                // Replace typing indicator with response
+                showTyping(false);
+
+                if (success) {
+                    addMessage(aiResponse, 'bot', modelName, sources, freshness);
+                    // Update header subtitle with current model
+                    if (modelName) {
+                        setStatus('online', modelName);
+                    }
+                } else {
+                    addMessage(aiResponse, 'bot');
+                    setStatus('offline', 'Error');
+                }
             }
         } catch (err) {
             showTyping(false);
