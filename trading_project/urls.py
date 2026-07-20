@@ -23,4 +23,5 @@ urlpatterns = [
     path('portfolio/', include('portfolio.urls')),
     path('sentiment/', include('sentiment.urls')),
     path('ai-chat/', include('ai_chat.urls')),
+    path('orderbook/', include('orderbook.urls')),
 ]

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Crypto Charts - Binance Real-Time</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0a90b'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='%230b0e11'%3E₿%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1032,52 +1033,6 @@
             .chart-container { height: 280px; }
         }
 
-        /* Order Book Mini */
-        .orderbook-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 24px;
-        }
-
-        .section-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 16px;
-        }
-
-        .orderbook-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 32px;
-        }
-
-        .orderbook-side-title {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-
-        .orderbook-side-title.asks { color: var(--accent-red); }
-        .orderbook-side-title.bids { color: var(--accent-green); }
-
-        .orderbook-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            font-size: 13px;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .orderbook-price.ask { color: var(--accent-red); }
-        .orderbook-price.bid { color: var(--accent-green); }
-        .orderbook-amount { color: var(--text-secondary); }
-
         /* Connection Status Bar */
         .connection-bar {
             position: fixed;
@@ -1137,6 +1092,15 @@
 
         .flash-down {
             animation: flash-red 0.5s ease-out;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
         }
 
         /* Responsive */
@@ -1277,26 +1241,7 @@
                 </div>
             </div>
 
-            <!-- Order Book Section (hidden until pair selected) -->
-            <div id="orderbookSection" style="display: none;">
-                <div class="orderbook-section">
-                    <div class="section-title">Order Book Depth</div>
-                    <div class="orderbook-grid">
-                        <div class="orderbook-side">
-                            <div class="orderbook-side-title asks">Asks</div>
-                            <div id="asksContainer">
-                                <div class="orderbook-row"><span class="orderbook-price ask">—</span><span class="orderbook-amount">—</span></div>
-                            </div>
-                        </div>
-                        <div class="orderbook-side">
-                            <div class="orderbook-side-title bids">Bids</div>
-                            <div id="bidsContainer">
-                                <div class="orderbook-row"><span class="orderbook-price bid">—</span><span class="orderbook-amount">—</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {% include 'orderbook/orderbook_section.html' %}
 
             <!-- Fear & Greed Index (hidden until pair selected) -->
             <div id="fearGreedSection" style="display: none;">
@@ -1308,6 +1253,10 @@
                             <div class="fear-greed-value">
                                 <span class="fear-greed-number neutral" id="fearGreedNumber">—</span>
                                 <span class="fear-greed-label" id="fearGreedLabel">Loading...</span>
+                            </div>
+                            <div class="sentiment-gauge loading" id="fngConsensus" style="margin-top:8px;">
+                                <span class="sentiment-gauge-icon" id="fngConsensusIcon">⏳</span>
+                                <span id="fngConsensusLabel">Analyzing...</span>
                             </div>
                         </div>
                     </div>
@@ -1387,7 +1336,6 @@
         let highlightedIndex = -1;
         let previousPrice = null;
         let previousPriceDirection = 'neutral';
-        let depthWs = null;
         // Chart state
         let chart = null;
         let candleSeries = null;
@@ -1404,7 +1352,6 @@
         const clearBtn = document.getElementById('searchClear');
         const noSelection = document.getElementById('noSelection');
         const priceCard = document.getElementById('priceCard');
-        const orderbookSection = document.getElementById('orderbookSection');
         const wsStatus = document.getElementById('wsStatus');
         const streamInfo = document.getElementById('streamInfo');
         const pairCountText = document.getElementById('pairCountText');
@@ -1584,7 +1531,7 @@
 
             // Connect WebSockets
             connectWebSocket(item.symbol.toLowerCase());
-            connectDepthWebSocket(item.symbol.toLowerCase());
+            initOrderBook(item.symbol.toLowerCase());
 
             // Load candlestick chart
             currentInterval = document.querySelector('.interval-btn.active')?.dataset?.interval || '15m';
@@ -1715,34 +1662,7 @@
             document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
         }
 
-        // ============================================================
-        // WebSocket - Depth Stream (Order Book)
-        // ============================================================
-        function connectDepthWebSocket(symbol) {
-            if (depthWs) {
-                depthWs.close();
-                depthWs = null;
-            }
 
-            const url = `wss://stream.binance.com:9443/ws/${symbol}@depth10`;
-
-            depthWs = new WebSocket(url);
-
-            depthWs.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    updateOrderBook(data);
-                } catch (err) {
-                    console.error('Depth parse error:', err);
-                }
-            };
-
-            depthWs.onclose = () => {
-                if (selectedSymbol && selectedSymbol.symbol.toLowerCase() === symbol) {
-                    setTimeout(() => connectDepthWebSocket(symbol), 5000);
-                }
-            };
-        }
 
         // ============================================================
         // Candlestick Chart
@@ -2066,28 +1986,7 @@
             }
         }
 
-        function updateOrderBook(data) {
-            const asksContainer = document.getElementById('asksContainer');
-            const bidsContainer = document.getElementById('bidsContainer');
-
-            // Asks (sorted ascending)
-            const asks = (data.a || []).slice(0, 10);
-            asksContainer.innerHTML = asks.map(([price, qty]) => `
-                <div class="orderbook-row">
-                    <span class="orderbook-price ask">${formatPrice(parseFloat(price))}</span>
-                    <span class="orderbook-amount">${formatVolume(parseFloat(qty))}</span>
-                </div>
-            `).join('');
-
-            // Bids (sorted descending)
-            const bids = (data.b || []).slice(0, 10);
-            bidsContainer.innerHTML = bids.map(([price, qty]) => `
-                <div class="orderbook-row">
-                    <span class="orderbook-price bid">${formatPrice(parseFloat(price))}</span>
-                    <span class="orderbook-amount">${formatVolume(parseFloat(qty))}</span>
-                </div>
-            `).join('');
-        }
+        // (order book rendering moved to orderbook/orderbook_section.html)
 
         // ============================================================
         // Formatting Helpers
@@ -2122,10 +2021,6 @@
                 ws.close();
                 ws = null;
             }
-            if (depthWs) {
-                depthWs.close();
-                depthWs = null;
-            }
             if (reconnectTimer) {
                 clearTimeout(reconnectTimer);
             }
@@ -2137,6 +2032,15 @@
             noSelection.style.display = 'flex';
             priceCard.style.display = 'none';
             chartSection.style.display = 'none';
+            // Clear auto-refresh timers
+            if (sentimentRefreshTimer) clearInterval(sentimentRefreshTimer);
+            if (fearGreedRefreshTimer) clearInterval(fearGreedRefreshTimer);
+
+            // Close depth WebSocket when clearing pair
+            if (typeof orderbook !== 'undefined' && orderbook.depthWs) {
+                orderbook.depthWs.close();
+                orderbook.depthWs = null;
+            }
             orderbookSection.style.display = 'none';
             fearGreedSection.style.display = 'none';
             sentimentSection.style.display = 'none';
@@ -2355,11 +2259,22 @@
             return div.innerHTML;
         }
 
-        // Override selectPair to also fetch sentiment
+        // Override selectPair to also fetch sentiment + fear/greed
         const originalSelectPair = selectPair;
+        let sentimentRefreshTimer = null;
+        let fearGreedRefreshTimer = null;
         selectPair = function(item) {
             originalSelectPair(item);
             fetchSentiment(item.symbol);
+            fetchFearGreed();
+
+            // Auto-refresh every 5 minutes
+            if (sentimentRefreshTimer) clearInterval(sentimentRefreshTimer);
+            if (fearGreedRefreshTimer) clearInterval(fearGreedRefreshTimer);
+            sentimentRefreshTimer = setInterval(() => {
+                if (selectedSymbol) fetchSentiment(selectedSymbol.symbol);
+            }, 300000);
+            fearGreedRefreshTimer = setInterval(fetchFearGreed, 300000);
         };
 
         // Refresh button
@@ -2387,6 +2302,15 @@
             'Extreme Greed': '🤑',
         };
 
+        // Map fear-greed classifications to consensus labels
+        const FNG_CONSENSUS = {
+            'Extreme Fear': { sentiment: 'bearish', icon: '🔻', label: 'Bearish' },
+            'Fear': { sentiment: 'bearish', icon: '🔻', label: 'Bearish' },
+            'Neutral': { sentiment: 'neutral', icon: '➖', label: 'Neutral' },
+            'Greed': { sentiment: 'bullish', icon: '🚀', label: 'Bullish' },
+            'Extreme Greed': { sentiment: 'bullish', icon: '🚀', label: 'Bullish' },
+        };
+
         const FNG_CLASSES = {
             'Extreme Fear': 'extreme-fear',
             'Fear': 'fear',
@@ -2411,6 +2335,9 @@
                 fearGreedCard.classList.remove('loading');
                 fearGreedNumber.textContent = '—';
                 fearGreedLabel.textContent = 'Unavailable';
+                document.getElementById('fngConsensus').className = 'sentiment-gauge neutral';
+                document.getElementById('fngConsensusIcon').textContent = '⚠️';
+                document.getElementById('fngConsensusLabel').textContent = 'Unavailable';
             }
         }
 
@@ -2432,6 +2359,13 @@
             fearGreedNumber.className = `fear-greed-number ${cls}`;
             fearGreedLabel.textContent = classification;
             fearGreedLabel.className = `fear-greed-label ${cls}`;
+
+            // Update consensus pill (same pattern as sentiment gauge)
+            const consensus = FNG_CONSENSUS[classification] || { sentiment: 'neutral', icon: '➖', label: 'Neutral' };
+            const fngConsensus = document.getElementById('fngConsensus');
+            fngConsensus.className = `sentiment-gauge ${consensus.sentiment}`;
+            document.getElementById('fngConsensusIcon').textContent = consensus.icon;
+            document.getElementById('fngConsensusLabel').textContent = consensus.label;
 
             // Update gauge indicator position (0-100)
             const leftPercent = Math.max(2, Math.min(98, value));

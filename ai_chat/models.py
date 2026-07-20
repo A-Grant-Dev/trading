@@ -2,13 +2,14 @@ from django.db import models
 
 
 # Default seed models (ranked best → worst, updated Jul 2026)
-# These are used as a starting point before auto-discovery runs
+# Priority: best free models with search grounding support first.
+# Each entry: (model_name, display_label, rank, supports_grounding)
 SEED_MODELS = [
-    ("gemini-3.5-flash", "Gemini 3.5 Flash — Latest, most intelligent stable model", 1),
-    ("gemini-3.1-flash-lite", "Gemini 3.1 Flash-Lite — High-volume workhorse", 2),
-    ("gemini-2.5-pro", "Gemini 2.5 Pro — Advanced reasoning & coding", 3),
-    ("gemini-2.5-flash", "Gemini 2.5 Flash — Balanced performance", 4),
-    ("gemini-2.5-flash-lite", "Gemini 2.5 Flash-Lite — Fast & budget-friendly", 5),
+    ("gemini-3.5-flash", "Gemini 3.5 Flash — Best free model with search grounding", 1),
+    ("gemini-3.1-flash-lite", "Gemini 3.1 Flash-Lite — Fast with search grounding", 2),
+    ("gemini-2.5-flash", "Gemini 2.5 Flash — Reliable grounding fallback", 3),
+    ("gemini-2.5-pro", "Gemini 2.5 Pro — Advanced reasoning (may hit free tier limits)", 4),
+    ("gemini-2.5-flash-lite", "Gemini 2.5 Flash-Lite — Budget fallback (no grounding)", 5),
 ]
 
 

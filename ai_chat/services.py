@@ -3,10 +3,9 @@ Google Gemini AI Chat Service.
 
 Uses the google-genai SDK to communicate with Gemini.
 Features:
-- Auto-fallback: tries the best active model first, falls back on rate limits
-- Auto-discovery: periodically checks Google's API for new free models (async)
-- Stale cleanup: removes deprecated models from the active list
-- Google Search Grounding: real-time web search like google.com's AI mode
+- Multi-model fallback: tries the best active model first, falls back on rate limits
+- Google Search Grounding: real-time web search for current data
+- Grounding-aware chain: tries models with grounding support first, falls back to simple
 - Model attribution: returns which model generated the response
 - No conversation history stored — stateless per request.
 """
@@ -20,7 +19,6 @@ from django.core.exceptions import SynchronousOnlyOperation
 from django.db.utils import OperationalError, ProgrammingError
 
 from .models import AiConfig, GeminiModel, SEED_MODELS
-from .google_search import search_ai_mode
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +28,14 @@ _discovery_thread = None
 _last_discovery_time = 0
 _DISCOVERY_COOLDOWN = 3600
 
+# Max models to try in a single request (avoids wasting time on auto-discovered legacy models)
+MAX_ATTEMPTS = 5
+# If this many consecutive models hit rate limits, abort immediately (same quota)
+MAX_CONSECUTIVE_RATE_LIMITS = 3
+
 _FALLBACK_MODELS = [
     {"name": name, "label": label, "rank": rank}
-    for name, label, rank in SEED_MODELS
+    for name, label, rank, *_ in SEED_MODELS
 ]
 
 _CHAT_FAMILIES = ("flash", "pro")
@@ -84,7 +87,7 @@ def seed_default_models():
     try:
         if GeminiModel.objects.count() == 0:
             logger.info("Seeding default Gemini models...")
-            for name, label, rank in SEED_MODELS:
+            for name, label, rank, *_ in SEED_MODELS:
                 GeminiModel.objects.create(
                     name=name, label=label, rank=rank,
                     is_active=True, auto_discovered=False,
@@ -174,29 +177,7 @@ def discover_latest_models(api_key):
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  GOOGLE AI MODE SCRAPER (Primary method — free, no API key needed)
-#  Routes queries through a headless browser to google.com's AI Mode
-#  and returns the AI Overview response.
-# ═════════════════════════════════════════════════════════════════════
-
-
-def _try_google_ai_mode(user_message: str) -> dict:
-    """
-    Try to get an answer from Google's AI Mode (browser-based).
-    Always returns a dict. Check result.get('success') to see if it worked.
-    The dict includes 'google_ai_mode_available' flag for the frontend.
-    """
-    result = search_ai_mode(user_message)
-    result["google_ai_mode_available"] = result.get("success", False)
-    if result.get("success"):
-        logger.info("Got response from Google AI Mode")
-    else:
-        logger.info(f"Google AI Mode unavailable: {result.get('response', 'unknown')[:80]}")
-    return result
-
-
-# ═════════════════════════════════════════════════════════════════════
-#  GOOGLE SEARCH GROUNDING (Secondary — requires API key, uses quota)
+#  GOOGLE SEARCH GROUNDING
 # ═════════════════════════════════════════════════════════════════════
 
 def _extract_grounding_sources(response) -> list:
@@ -238,8 +219,21 @@ def _is_rate_limit_error(error_msg: str) -> bool:
     return any(c in error_msg for c in checks)
 
 
+def _is_model_not_found(error_msg: str) -> bool:
+    """Check if error indicates a model is deprecated/removed/not found."""
+    if "not found" in error_msg and "model" in error_msg:
+        return True
+    if "no longer available" in error_msg or "no longer" in error_msg:
+        return True
+    if "deprecated" in error_msg:
+        return True
+    if "not_found" in error_msg or "404" in error_msg:
+        return True
+    return False
+
+
 def _generate_simple(api_key: str, model_name: str, user_message: str):
-    """Call Gemini without grounding (fallback for models that don't support it)."""
+    """Call Gemini without grounding (last resort for models that don't support it)."""
     client = _get_client(api_key)
     response = client.models.generate_content(
         model=model_name,
@@ -250,90 +244,137 @@ def _generate_simple(api_key: str, model_name: str, user_message: str):
     return None, []
 
 
+def _is_model_3x(model_name: str) -> bool:
+    """Check if model is Gemini 3.x (uses the new google_search tool format)."""
+    return bool(re.match(r'^gemini-3\.', model_name))
+
+
 def _generate_with_grounding(api_key: str, model_name: str, user_message: str):
     """
     Call Gemini with Google Search Grounding enabled — like google.com's AI mode.
-    Falls back to simple generation if the model doesn't support grounding.
-    Returns (response_text, sources_list).
+
+    Uses the appropriate API based on model version:
+    - Gemini 3.x: interactions.create() with tools=[{"type": "google_search"}]
+    - Gemini 2.x: models.generate_content() with google_search_retrieval tool
+
+    Returns (response_text, sources_list) or (None, []) if grounding fails.
+    Does NOT fall back to simple generation — that's handled by the caller.
     """
     from google import genai
     from google.genai import types
 
     try:
         client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model_name,
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(
-                    google_search_retrieval=types.GoogleSearchRetrieval()
-                )]
-            ),
-        )
-        if response and response.text:
-            sources = _extract_grounding_sources(response)
-            return response.text, sources
-        return None, []
+
+        if _is_model_3x(model_name):
+            # ── Gemini 3.x: Interactions API with google_search tool ──────────
+            # Docs: https://ai.google.dev/gemini-api/docs/google-search
+            interaction = client.interactions.create(
+                model=model_name,
+                input=user_message,
+                tools=[{"type": "google_search"}],
+            )
+            if interaction and getattr(interaction, 'output_text', None):
+                sources = []
+                # Extract citations from the interaction steps
+                steps = getattr(interaction, 'steps', None) or []
+                for step in steps:
+                    if getattr(step, 'type', None) == 'model_output':
+                        content = getattr(step, 'content', None) or []
+                        for content_block in content:
+                            if getattr(content_block, 'type', None) == 'text':
+                                annotations = getattr(content_block, 'annotations', None) or []
+                                for annotation in annotations:
+                                    if getattr(annotation, 'type', None) == 'url_citation':
+                                        url = getattr(annotation, 'url', None)
+                                        if url:
+                                            sources.append({
+                                                "title": getattr(annotation, 'title', '') or '',
+                                                "url": url,
+                                            })
+                return interaction.output_text, sources
+            return None, []
+
+        else:
+            # ── Gemini 2.x: generate_content with google_search_retrieval ─────
+            response = client.models.generate_content(
+                model=model_name,
+                contents=user_message,
+                config=types.GenerateContentConfig(
+                    tools=[types.Tool(
+                        google_search_retrieval=types.GoogleSearchRetrieval()
+                    )]
+                ),
+            )
+            if response and response.text:
+                sources = _extract_grounding_sources(response)
+                return response.text, sources
+            return None, []
+
     except Exception as e:
         error_msg = str(e).lower()
-        if "google_search_retrieval" in error_msg or "is not supported" in error_msg:
-            logger.info(f"Grounding not supported for {model_name}, falling back to simple")
-            return _generate_simple(api_key, model_name, user_message)
+
+        # Catch grounding-not-supported (graceful skip to next model)
+        grounding_keywords = [
+            "google_search_retrieval", "google_search", "is not supported",
+            "not supported", "grounding", "interactions",
+        ]
+        if any(kw in error_msg for kw in grounding_keywords):
+            logger.info(f"Grounding not supported for {model_name}: {error_msg[:150]}")
+            return None, []
+
+        # Catch 404 / deprecated / not-found — deactivate and skip gracefully
+        if _is_model_not_found(error_msg):
+            logger.warning(f"Model not available for {model_name}: {error_msg[:150]}")
+            # Deactivate so this model isn't retried on every request
+            try:
+                updated = GeminiModel.objects.filter(
+                    name=model_name, is_active=True
+                ).update(is_active=False)
+                if updated:
+                    logger.info(f"Auto-deactivated unavailable model: {model_name}")
+            except Exception:
+                pass
+            return None, []
+
         raise
 
+
+# ═════════════════════════════════════════════════════════════════════
+#  MAIN ENTRY POINT
+# ═════════════════════════════════════════════════════════════════════
 
 def get_gemini_response(user_message: str) -> dict:
     """
     Send a message to Gemini and get a response with model attribution.
 
-    PRIORITY ORDER:
-    1. Google AI Mode scraper (browser-based, free, no API key needed)
-    2. Google Search Grounding via Gemini API (if API key is configured)
-    3. Simple Gemini generation (fallback if models don't support grounding)
-
-    Falls back through rate limits automatically.
+    STRATEGY (in order):
+    1. Try each model (by rank) with Google Search Grounding enabled
+    2. If grounding isn't supported for a model, fall back to simple generation
+    3. On rate limits, try the next model in the chain
+    4. Last resort: simplest model without grounding
 
     Returns:
-        {"response": "...", "model": "google-ai-mode",
-         "sources": [...], "success": True}
-        or
-        {"response": "...error...", "model": None, "sources": [], "success": False}
+        {"response": "text", "model": "gemini-3.5-flash",
+         "model_label": "Gemini 3.5 Flash — ...",
+         "sources": [...], "success": True,
+         "model_info": {"used": "...", "attempts": [...], "status": "ok"}}
+        or error dict with success: False
     """
 
-    # ── Fetch API key FIRST, before any browser/Playwright operations ──
-    # Playwright's sync API creates an async event loop as a side effect,
-    # which causes Django ORM to raise SynchronousOnlyOperation if we
-    # try to query the DB afterwards. So we grab the key upfront.
     api_key = get_api_key()
 
-    # ── PRIMARY: Try Google AI Mode (browser-based, free, no API key) ──
-    google_result = _try_google_ai_mode(user_message)
-    if google_result.get("success"):
-        google_result["model"] = "google-ai-mode"
-        google_result["model_label"] = "Google AI Mode — Real-time web search"
-        google_result["data_source"] = "google_ai_mode"
-        google_result["freshness"] = "real_time"
-        return google_result
-
-    # ── Build Google AI Mode failure info for the frontend banner ──
-    google_ai_mode_info = {
-        "available": False,
-        "reason": google_result.get("response", "Google AI Mode is currently unavailable."),
-        "impact": (
-            "Google AI Mode searches the live web for the latest prices, news, and market data. "
-            "Without it, the AI relies on its training data which may be weeks or months old."
-        ),
-    }
-
-    # ── FALLBACK: Try Gemini with Grounding (requires API key) ──
     if not api_key:
         return {
             "response": (
-                "⚠️ Google Gemini is not configured and Google AI Mode is unavailable. "
+                "⚠️ Google Gemini is not configured. "
                 "Please add your API key in the admin panel at /admin/ai_chat/aiconfig/."
             ),
             "model": None, "sources": [], "success": False,
-            "google_ai_mode_info": google_ai_mode_info,
+            "model_info": {
+                "status": "no_api_key",
+                "message": "No API key configured. Add one in the admin panel.",
+            },
         }
 
     seed_default_models()
@@ -344,20 +385,26 @@ def get_gemini_response(user_message: str) -> dict:
         return {
             "response": "⚠️ No active AI models found. Check /admin/ai_chat/geminimodel/.",
             "model": None, "sources": [], "success": False,
-            "google_ai_mode_info": google_ai_mode_info,
+            "model_info": {
+                "status": "no_models",
+                "message": "No active models in database.",
+            },
         }
 
-    logger.info("Google AI Mode unavailable, falling back to Gemini Grounding...")
+    logger.info(f"Sending message to Gemini with search grounding ({min(len(models), MAX_ATTEMPTS)} models max)...")
 
-    # ── Try each model in rank order with grounding ──────────────
+    # ── Track which models we try and why they fail ──
+    attempts_log = []
     last_error = None
     last_error_type = None
     attempts = 0
+    consecutive_rate_limits = 0
 
-    for model_entry in models:
+    for model_entry in models[:MAX_ATTEMPTS]:
         model_name = model_entry["name"]
         model_label = model_entry.get("label", model_name)
 
+        # Try with grounding first
         try:
             attempts += 1
             response_text, sources = _generate_with_grounding(
@@ -365,9 +412,32 @@ def get_gemini_response(user_message: str) -> dict:
             )
 
             if response_text:
-                logger.info(f"AI response from model: {model_name} (attempt #{attempts})")
-                # Determine data freshness: sources present = real-time grounding, empty = knowledge base
                 had_grounding = len(sources) > 0
+                logger.info(
+                    f"AI response from {model_name} "
+                    f"(attempt #{attempts}, grounding={had_grounding})"
+                )
+
+                # Build model info for the frontend notification banner
+                model_info = {
+                    "used": model_name,
+                    "label": model_label,
+                    "attempts": attempts_log,
+                    "status": "ok",
+                    "grounding": had_grounding,
+                    "message": None,
+                }
+                if attempts > 1:
+                    # Some models were skipped due to errors
+                    failures = [a for a in attempts_log if not a.get("success")]
+                    if failures:
+                        model_info["message"] = (
+                            f"Tried {len(failures)} higher-tier model(s) first: "
+                            + "; ".join(
+                                f"{f['model']} ({f['reason']})" for f in failures
+                            )
+                        )
+
                 return {
                     "response": response_text,
                     "model": model_name,
@@ -376,74 +446,166 @@ def get_gemini_response(user_message: str) -> dict:
                     "success": True,
                     "data_source": "google_grounding" if had_grounding else "knowledge_base",
                     "freshness": "real_time" if had_grounding else "knowledge_base",
-                    "google_ai_mode_info": google_ai_mode_info,
+                    "model_info": model_info,
                 }
 
             last_error = f"Empty response from {model_name}"
             last_error_type = "empty"
+            attempts_log.append({
+                "model": model_name, "success": False, "reason": "Empty response",
+            })
             continue
 
         except ImportError:
-            return {"response": "⚠️ AI package not installed.", "model": None, "sources": [], "success": False, "google_ai_mode_info": google_ai_mode_info}
+            return {
+                "response": "⚠️ AI package not installed. Run: pip install google-genai",
+                "model": None, "sources": [], "success": False,
+            }
 
         except Exception as e:
             error_msg = str(e).lower()
             logger.warning(f"Model {model_name} failed (attempt #{attempts}): {error_msg[:120]}")
 
             if any(x in error_msg for x in ["api_key", "unauthorized", "permission", "key not found"]):
-                return {"response": "⚠️ Invalid API key.", "model": None, "sources": [], "success": False, "google_ai_mode_info": google_ai_mode_info}
+                return {
+                    "response": "⚠️ Invalid API key. Check your key at /admin/ai_chat/aiconfig/.",
+                    "model": None, "sources": [], "success": False,
+                    "model_info": {"status": "bad_key", "message": "API key is invalid."},
+                }
 
-            if "not found" in error_msg and "model" in error_msg:
-                last_error = f"Model '{model_name}' not found"
+            if _is_model_not_found(error_msg):
+                reason = f"Model '{model_name}' is unavailable (deprecated or removed)"
+                attempts_log.append({"model": model_name, "success": False, "reason": reason})
+                last_error = reason
                 last_error_type = "not_found"
+                # Auto-deactivate dead models so they aren't retried on next request
+                try:
+                    updated = GeminiModel.objects.filter(
+                        name=model_name, is_active=True
+                    ).update(is_active=False)
+                    if updated:
+                        logger.info(f"Auto-deactivated unavailable model: {model_name}")
+                except Exception:
+                    pass
                 continue
 
             if "safety" in error_msg or "blocked" in error_msg:
-                return {"response": "⚠️ Safety filters blocked the response.", "model": None, "sources": [], "success": False, "google_ai_mode_info": google_ai_mode_info}
+                attempts_log.append({
+                    "model": model_name, "success": False,
+                    "reason": "Response blocked by safety filters",
+                })
+                return {
+                    "response": "⚠️ Safety filters blocked the response. Try rephrasing.",
+                    "model": None, "sources": [], "success": False,
+                    "model_info": {
+                        "status": "safety_block",
+                        "message": f"Blocked on {model_name}",
+                        "attempts": attempts_log,
+                    },
+                }
 
             if _is_rate_limit_error(error_msg):
+                consecutive_rate_limits += 1
                 if "free_tier" in error_msg or "exceeded your current" in error_msg:
-                    last_error = f"Daily quota exhausted for {model_name}"
-                    last_error_type = "daily_quota"
+                    reason = "Daily quota exhausted"
                 else:
-                    last_error = f"Rate limit reached for {model_name}"
-                    last_error_type = "rate_limit"
-                logger.info(f"Rate limit on {model_name}, trying next...")
-                continue
+                    reason = "Rate limit reached"
+                attempts_log.append({"model": model_name, "success": False, "reason": reason})
+                last_error = f"{reason} for {model_name}"
+                last_error_type = "rate_limit"
+                logger.info(f"{reason} on {model_name} ({consecutive_rate_limits}/{MAX_CONSECUTIVE_RATE_LIMITS}), trying next...")
 
-            last_error = str(e)[:200]
+                # Early abort: if all models share the same quota, no point continuing
+                if consecutive_rate_limits >= MAX_CONSECUTIVE_RATE_LIMITS:
+                    logger.warning(f"{consecutive_rate_limits} consecutive rate limits. Aborting model chain.")
+                    break
+
+                continue
+            else:
+                consecutive_rate_limits = 0  # Reset on any non-rate-limit error
+
+            reason = str(e)[:200]
+            attempts_log.append({"model": model_name, "success": False, "reason": reason})
+            last_error = reason
             last_error_type = "unknown"
             logger.exception(f"Unexpected error with {model_name}")
             continue
 
-    # ── All models exhausted ──
+    # ── All models failed grounding: try simple generation as last resort ──
+    first_model = models[0]["name"] if models else None
+    first_model_label = models[0].get("label", first_model) if models else None
+
+    logger.warning(
+        f"All {attempts} models failed grounding. Trying simple generation with {first_model}..."
+    )
+
+    if first_model:
+        try:
+            response_text, _ = _generate_simple(api_key, first_model, user_message)
+            if response_text:
+                logger.info(f"Last-resort response from {first_model} (no grounding)")
+                model_info = {
+                    "used": first_model,
+                    "label": first_model_label,
+                    "attempts": attempts_log,
+                    "status": "ok",
+                    "grounding": False,
+                    "message": (
+                        f"None of the {attempts} model(s) support search grounding. "
+                        f"Using {first_model} without live web search."
+                    ),
+                }
+                return {
+                    "response": response_text,
+                    "model": first_model,
+                    "model_label": first_model_label,
+                    "sources": [],
+                    "success": True,
+                    "data_source": "knowledge_base",
+                    "freshness": "knowledge_base",
+                    "model_info": model_info,
+                }
+        except Exception as e:
+            last_error = str(e)[:200]
+            attempts_log.append({
+                "model": first_model, "success": False,
+                "reason": f"Simple generation also failed: {last_error}",
+            })
+
+    # ── Everything failed ──
     logger.warning(f"All models exhausted after {attempts} attempts. Last: {last_error_type}")
 
-    if last_error_type == "daily_quota":
+    model_info = {
+        "status": "all_exhausted",
+        "attempts": attempts_log,
+        "message": None,
+    }
+
+    if last_error_type == "rate_limit":
+        model_info["message"] = (
+            "All models are rate-limited. Wait a moment or enable billing "
+            "at aistudio.google.com."
+        )
         return {
             "response": (
-                "⚠️ All Gemini models have exhausted their free tier daily quotas.\n\n"
+                "⚠️ All Gemini models are currently rate-limited.\n\n"
                 "📌 Options:\n"
-                "  • Wait for daily quota to reset\n"
-                "  • Enable billing at aistudio.google.com to remove limits\n"
+                "  • Wait a moment and try again\n"
+                "  • Enable billing at aistudio.google.com to remove free tier limits\n"
                 "  • Check /admin/ai_chat/geminimodel/ to see available models"
             ),
             "model": None, "sources": [], "success": False,
-            "google_ai_mode_info": google_ai_mode_info,
+            "model_info": model_info,
         }
 
-    if last_error_type == "rate_limit":
-        return {
-            "response": (
-                "⚠️ All models are currently rate-limited. Please wait a moment "
-                "and try again, or enable billing at aistudio.google.com."
-            ),
-            "model": None, "sources": [], "success": False,
-            "google_ai_mode_info": google_ai_mode_info,
-        }
+    if last_error_type == "not_found":
+        model_info["message"] = (
+            "The configured models may be outdated. Run model auto-discovery "
+            "or update them in the admin panel."
+        )
 
     return {
         "response": f"🤖 Sorry, I couldn't get a response. Last error: {last_error or 'unknown'}",
         "model": None, "sources": [], "success": False,
-        "google_ai_mode_info": google_ai_mode_info,
+        "model_info": model_info,
     }

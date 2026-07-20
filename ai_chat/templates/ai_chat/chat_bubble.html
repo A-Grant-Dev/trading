@@ -643,18 +643,15 @@
         <button class="ai-chat-close" id="aiChatClose" title="Close">✕</button>
     </div>
 
-    <!-- Google AI Mode Banner (collapsible notification when AI Mode is down) -->
-    <div class="ai-banner" id="aiBanner">
+    <!-- Model info banner (shows when a higher-tier model couldn't be used) -->
+    <div class="ai-banner" id="aiBanner" style="display:none;">
         <div class="ai-banner-header" id="aiBannerToggle">
-            <span class="icon">⚠️</span>
-            <span id="aiBannerTitle">Google AI Mode unavailable</span>
+            <span class="icon" id="aiBannerIcon">ℹ️</span>
+            <span id="aiBannerTitle">Model info</span>
             <span class="arrow" id="aiBannerArrow">▶</span>
         </div>
         <div class="ai-banner-body" id="aiBannerBody">
-            <p id="aiBannerReason">Google blocked the automated search request.</p>
-            <p class="impact" id="aiBannerImpact">
-                🌐 <strong>Why this matters:</strong> Google AI Mode searches the live web for the latest prices, news, and market data. Without it, the AI relies on its training data which may be weeks or months old.
-            </p>
+            <p id="aiBannerReason"></p>
             <button class="ai-banner-close" id="aiBannerDismiss">Dismiss</button>
         </div>
     </div>
@@ -711,7 +708,7 @@
     const bannerArrow = document.getElementById('aiBannerArrow');
     const bannerTitle = document.getElementById('aiBannerTitle');
     const bannerReason = document.getElementById('aiBannerReason');
-    const bannerImpact = document.getElementById('aiBannerImpact');
+    const bannerIcon = document.getElementById('aiBannerIcon');
     const bannerDismiss = document.getElementById('aiBannerDismiss');
     let bannerDismissed = false;
     let isOpen = false;
@@ -757,20 +754,41 @@
         bannerDismissed = true;
     });
 
-    // ── Update banner from API response ───────────────────
-    function updateBanner(googleAiModeInfo) {
-        if (!googleAiModeInfo || googleAiModeInfo.available || bannerDismissed) {
+    // ── Show model info banner (replaces old Google AI Mode banner) ──
+    function updateModelInfo(modelInfo) {
+        if (!modelInfo || bannerDismissed) {
             banner.classList.remove('visible');
             return;
         }
-        // Show banner with details
-        banner.classList.add('visible');
-        bannerBody.classList.remove('open');
-        bannerArrow.classList.remove('open');
-        bannerTitle.textContent = '⚠️ Google AI Mode unavailable';
-        bannerReason.textContent = googleAiModeInfo.reason || 'Unknown error';
-        if (googleAiModeInfo.impact) {
-            bannerImpact.innerHTML = '🌐 <strong>Why this matters:</strong> ' + googleAiModeInfo.impact;
+
+        var status = modelInfo.status || 'ok';
+        var message = modelInfo.message || null;
+        var used = modelInfo.used || null;
+        var grounding = modelInfo.grounding;
+
+        // Only show banner if there's useful info to display
+        if (status === 'ok' && !message) {
+            // Everything worked fine, but show a subtle grounding indicator
+            if (used) {
+                bannerIcon.textContent = grounding ? '🌐' : '📚';
+                bannerTitle.textContent = used + (grounding ? ' — Searching web' : ' — Knowledge base');
+                bannerReason.innerHTML = grounding
+                    ? 'Responses include real-time web sources via Google Search Grounding.'
+                    : 'This model does not support web search. Responses may not reflect current data.';
+                banner.classList.add('visible');
+                bannerBody.classList.remove('open');
+                bannerArrow.classList.remove('open');
+            }
+            return;
+        }
+
+        if (message) {
+            bannerIcon.textContent = '⚠️';
+            bannerTitle.textContent = 'Model note';
+            bannerReason.textContent = message;
+            banner.classList.add('visible');
+            bannerBody.classList.remove('open');
+            bannerArrow.classList.remove('open');
         }
     }
 
@@ -1018,8 +1036,8 @@
             const success = data.success || false;
             const freshness = data.freshness || (sources.length > 0 ? 'real_time' : 'knowledge_base');
 
-            // Update banner with Google AI Mode status
-            updateBanner(data.google_ai_mode_info);
+            // Update model info banner
+            updateModelInfo(data.model_info);
 
             // Replace typing indicator with response
             showTyping(false);

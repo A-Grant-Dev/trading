@@ -17,6 +17,7 @@ from urllib.parse import quote
 import feedparser
 import requests
 from textblob import TextBlob
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ HEADERS = {"User-Agent": USER_AGENT}
 MAX_ARTICLES_PER_SOURCE = 8
 MAX_REDDIT_POSTS = 10
 CACHE_TTL_SECONDS = 300  # 5 minutes
+MAX_AGE_DAYS = 31  # Max age for articles/posts in days
 
 # ── Coin name mapping ──────────────────────────────────────────────
 
@@ -158,29 +160,45 @@ def fetch_google_news(query, max_entries=8):
 # ── Reddit Scraper (RSS-based) ───────────────────────────────────────
 #
 # Reddit's JSON API is locked down (returns 403).
-# We use the public RSS feed for r/cryptocurrency hot posts instead.
-# Results are filtered locally for coin mentions.
-
-REDDIT_RSS_URL = "https://www.reddit.com/r/cryptocurrency/.rss"
+# We use Reddit's public RSS search instead, which still works.
+# This searches r/cryptocurrency for the specific coin, returning
+# results even for less popular coins.
 
 
 def fetch_reddit_posts(query, max_posts=6):
     """
-    Fetch Reddit posts mentioning the crypto from r/cryptocurrency RSS feed.
-    Uses RSS instead of JSON API since Reddit locked down their API.
+    Fetch Reddit posts mentioning the crypto using Reddit's RSS search.
+    Searches r/cryptocurrency for posts matching the coin ticker or name.
+    Falls back to the main hot feed if search returns nothing.
     """
     posts = []
     try:
-        feed = feedparser.parse(REDDIT_RSS_URL)
-        query_lower = query.lower()
+        search_q = quote(query)
+        # Reddit search RSS - works for any coin
+        search_url = f"https://www.reddit.com/r/cryptocurrency/search.rss?q={search_q}&restrict_sr=on&sort=new&t=month"
+        feed = feedparser.parse(search_url)
 
-        for entry in feed.entries[:max_posts * 2]:
+        entries = feed.entries or []
+        if not entries:
+            # Fallback: try the general hot feed and filter
+            feed = feedparser.parse("https://www.reddit.com/r/cryptocurrency/.rss")
+            entries = feed.entries or []
+
+        query_lower = query.lower()
+        for entry in entries[:max_posts * 2]:
             title = entry.title
             title_lower = title.lower()
 
-            # Only include posts that mention the coin
-            if query_lower not in title_lower:
-                continue
+            # Relaxed matching: the search RSS already returns relevant results;
+            # just skip clearly off-topic posts (no coin name, no ticker, no crypto mention)
+            if query_lower not in title_lower and len(query_lower) <= 4:
+                # For short tickers (BTC, ETH, etc.), be more lenient if crypto-related
+                if 'crypto' not in title_lower and 'cryptocurrenc' not in title_lower:
+                    continue
+            elif query_lower not in title_lower and len(query_lower) > 4:
+                # For longer names/tickers (HBAR, AVAX, etc.), try first 4 chars
+                if query_lower[:4] not in title_lower and 'crypto' not in title_lower:
+                    continue
 
             link = entry.link
             published = None
@@ -189,6 +207,10 @@ def fetch_reddit_posts(query, max_posts=6):
                     published = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
                 except Exception:
                     published = None
+
+            # Skip posts older than MAX_AGE_DAYS
+            if published and is_older_than(published, MAX_AGE_DAYS):
+                continue
 
             posts.append({
                 "title": title,
@@ -217,6 +239,7 @@ def fetch_hacker_news(query, max_posts=6):
     """
     Fetch Hacker News posts about the crypto using Algolia's free API.
     No API key required, no rate limiting for moderate usage.
+    If no coin-specific results found, does a broader crypto search.
     """
     posts = []
     try:
@@ -231,12 +254,25 @@ def fetch_hacker_news(query, max_posts=6):
             return posts
 
         data = resp.json()
-        for hit in data.get("hits", []):
+        hits = data.get("hits", [])
+
+        # If no results, try broader search
+        if not hits:
+            broader_query = quote("cryptocurrency crypto blockchain")
+            broader_url = (
+                f"https://hn.algolia.com/api/v1/search?"
+                f"query={broader_query}&tags=story&hitsPerPage={max_posts}"
+            )
+            resp2 = requests.get(broader_url, timeout=REQUEST_TIMEOUT)
+            if resp2.status_code == 200:
+                hits = resp2.json().get("hits", [])
+
+        for hit in hits:
             title = hit.get("title", "")
             title_lower = title.lower()
 
-            # Only include if it mentions the coin
-            if query.lower() not in title_lower and "crypto" not in title_lower:
+            # Include if it mentions the coin or is about crypto in general
+            if query.lower() not in title_lower and "crypto" not in title_lower and "cryptocurrenc" not in title_lower:
                 continue
 
             created_at = hit.get("created_at")
@@ -246,6 +282,10 @@ def fetch_hacker_news(query, max_posts=6):
                     published = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                 except Exception:
                     published = None
+
+            # Skip posts older than MAX_AGE_DAYS
+            if published and is_older_than(published, MAX_AGE_DAYS):
+                continue
 
             posts.append({
                 "title": title,
@@ -265,6 +305,36 @@ def fetch_hacker_news(query, max_posts=6):
         logger.warning(f"Failed to fetch Hacker News for '{query}': {e}")
 
     return posts
+
+
+# ── Date Helpers ────────────────────────────────────────────────────
+
+def is_older_than(dt, days):
+    """Check if a datetime is older than the specified number of days."""
+    if not dt:
+        return False
+    now = datetime.now(timezone.utc)
+    age = (now - dt).total_seconds()
+    return age > days * 86400  # days to seconds
+
+
+def filter_recent(items, date_key="published", max_days=MAX_AGE_DAYS):
+    """Filter a list of items to only include those newer than max_days.
+    Items without a published date are excluded (we can't verify they're recent).
+    """
+    filtered = []
+    for item in items:
+        published_str = item.get(date_key)
+        if not published_str:
+            continue  # Skip items without dates — can't verify recency
+        try:
+            published = datetime.fromisoformat(published_str)
+            if is_older_than(published, max_days):
+                continue
+        except Exception:
+            continue  # Can't parse date, skip to be safe
+        filtered.append(item)
+    return filtered
 
 
 # ── Sentiment Analysis ─────────────────────────────────────────────
@@ -480,6 +550,14 @@ def get_crypto_sentiment(base_asset):
     hn_posts = fetch_hacker_news(coin_name, MAX_REDDIT_POSTS)
     for post in hn_posts:
         all_headlines.append(post["title"])
+
+    # Filter to only include recent items (max 1 month old)
+    all_articles = filter_recent(all_articles)
+    reddit_posts = filter_recent(reddit_posts)
+    hn_posts = filter_recent(hn_posts)
+    all_headlines = [a["title"] for a in all_articles]
+    all_headlines.extend(p["title"] for p in reddit_posts)
+    all_headlines.extend(p["title"] for p in hn_posts)
 
     # Analyze sentiment
     headline_sentiment = analyze_headline_sentiment(all_headlines)

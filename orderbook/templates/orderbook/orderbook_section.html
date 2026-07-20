@@ -1,0 +1,588 @@
+<!-- Order Book Section (included from orderbook app) -->
+<div id="orderbookSection" style="display: none;">
+    <div class="ob-card" id="orderbookCard">
+        <div class="ob-card-header">
+            <div class="ob-title-area">
+                <span class="ob-section-title">📊 Order Book Depth</span>
+                <span class="ob-status" id="depthStatus">—</span>
+            </div>
+            <div class="sentiment-gauge loading" id="obConsensus">
+                <span class="sentiment-gauge-icon" id="obConsensusIcon">⏳</span>
+                <span id="obConsensusLabel">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Price Summary Row -->
+        <div class="ob-price-row">
+            <div class="ob-price-block">
+                <span class="ob-mini-label">Best Bid</span>
+                <span class="ob-best-bid" id="bestBidDisplay">—</span>
+            </div>
+            <div class="ob-spread-block">
+                <span class="ob-mini-label">Spread</span>
+                <span class="ob-spread-val" id="spreadValue">—</span>
+                <span class="ob-spread-pct" id="spreadPct">—</span>
+            </div>
+            <div class="ob-price-block right">
+                <span class="ob-mini-label">Best Ask</span>
+                <span class="ob-best-ask" id="bestAskDisplay">—</span>
+            </div>
+        </div>
+
+        <!-- Imbalance Gauge -->
+        <div class="ob-gauge-section">
+            <div class="ob-gauge-header">
+                <span class="ob-mini-label">Order Book Imbalance</span>
+                <span class="ob-imbalance-pct" id="imbalancePct">—</span>
+            </div>
+            <div class="ob-gauge-track">
+                <div class="ob-gauge-bar" id="imbalanceBar">
+                    <div class="ob-gauge-indicator" id="imbalanceIndicator" style="left: 50%;"></div>
+                </div>
+                <div class="ob-gauge-labels">
+                    <span>🔴 Sell Pressure</span>
+                    <span>🟢 Buy Pressure</span>
+                </div>
+            </div>
+            <div class="ob-gauge-verdict" id="imbalanceVerdict">
+                <span class="ob-verdict-dot" id="verdictDot"></span>
+                <span id="verdictText">Waiting for data...</span>
+            </div>
+        </div>
+
+        <!-- Volume Summary Footer -->
+        <div class="ob-volume-footer" id="depthFooter" style="display:none;">
+            <div class="ob-vol-row">
+                <span class="ob-vol-label">Ask Vol</span>
+                <span class="ob-vol-num ask" id="totalAskVol">—</span>
+                <span class="ob-vol-divider">|</span>
+                <span class="ob-vol-num bid" id="totalBidVol">—</span>
+                <span class="ob-vol-label">Bid Vol</span>
+            </div>
+            <div class="ob-vol-row ob-vol-sub">
+                <span>Ratio: <span id="bidAskRatio">—</span></span>
+                <span id="depthLevels">— levels</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ── Order Book Card (page-consistent styling) ─────────────── */
+    .ob-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 20px 28px;
+        transition: all 0.3s ease;
+    }
+
+    .ob-card.active {
+        border-color: rgba(30, 128, 255, 0.3);
+        box-shadow: 0 0 30px rgba(30, 128, 255, 0.05);
+    }
+
+    .ob-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .ob-title-area {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ob-section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .ob-status {
+        font-size: 11px;
+        font-weight: 400;
+        color: var(--text-muted);
+    }
+    .ob-status.connected { color: var(--accent-green); }
+    .ob-status.disconnected { color: var(--accent-red); }
+
+    /* Consensus badge reuses .sentiment-gauge CSS from parent page */
+
+    /* Price row */
+    .ob-price-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background: var(--bg-primary);
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        gap: 12px;
+    }
+
+    .ob-price-block {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .ob-price-block.right { text-align: right; }
+
+    .ob-mini-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .ob-best-bid {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--accent-green);
+    }
+    .ob-best-ask {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--accent-red);
+    }
+
+    .ob-spread-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        text-align: center;
+    }
+    .ob-spread-val {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .ob-spread-pct {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    /* Imbalance gauge section */
+    .ob-gauge-section {
+        margin-bottom: 16px;
+    }
+
+    .ob-gauge-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .ob-imbalance-pct {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    /* Gauge track (like fear-greed gauge) */
+    .ob-gauge-track {
+        margin-bottom: 8px;
+    }
+
+    .ob-gauge-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(
+            to right,
+            var(--accent-red) 0%,
+            #f0a90b 30%,
+            var(--text-muted) 48%,
+            var(--text-muted) 52%,
+            #45b36b 70%,
+            var(--accent-green) 100%
+        );
+        position: relative;
+        margin-bottom: 6px;
+        overflow: hidden;
+    }
+
+    .ob-gauge-indicator {
+        position: absolute;
+        top: -4px;
+        width: 16px;
+        height: 16px;
+        background: var(--text-primary);
+        border: 2px solid var(--bg-card);
+        border-radius: 50%;
+        transform: translateX(-50%);
+        box-shadow: 0 0 8px rgba(0,0,0,0.4);
+        transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 2;
+    }
+
+    .ob-gauge-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    /* Verdict line */
+    .ob-gauge-verdict {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .ob-gauge-verdict.bullish {
+        background: rgba(14, 203, 129, 0.08);
+        color: var(--accent-green);
+    }
+    .ob-gauge-verdict.bearish {
+        background: rgba(246, 70, 93, 0.08);
+        color: var(--accent-red);
+    }
+    .ob-gauge-verdict.neutral {
+        background: rgba(132, 142, 156, 0.08);
+        color: var(--text-secondary);
+    }
+
+    .ob-verdict-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .ob-verdict-dot.bullish { background: var(--accent-green); box-shadow: 0 0 6px rgba(14, 203, 129, 0.5); }
+    .ob-verdict-dot.bearish { background: var(--accent-red); box-shadow: 0 0 6px rgba(246, 70, 93, 0.5); }
+    .ob-verdict-dot.neutral { background: var(--text-muted); }
+
+    /* Volume footer */
+    .ob-volume-footer {
+        padding: 10px 16px;
+        background: var(--bg-primary);
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+    }
+
+    .ob-vol-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 11px;
+    }
+    .ob-vol-row.ob-vol-sub {
+        margin-top: 4px;
+        font-size: 10px;
+        color: var(--text-muted);
+        gap: 16px;
+    }
+
+    .ob-vol-label {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    .ob-vol-num {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .ob-vol-num.ask { color: var(--accent-red); }
+    .ob-vol-num.bid { color: var(--accent-green); }
+    .ob-vol-divider { color: var(--border-color); }
+
+    /* Flash animation */
+    @keyframes flash-ob-up {
+        0% { background-color: rgba(14, 203, 129, 0.08); }
+        100% { background-color: transparent; }
+    }
+    @keyframes flash-ob-down {
+        0% { background-color: rgba(246, 70, 93, 0.08); }
+        100% { background-color: transparent; }
+    }
+    .ob-flash-up { animation: flash-ob-up 0.4s ease-out; }
+    .ob-flash-down { animation: flash-ob-down 0.4s ease-out; }
+
+    @media (max-width: 768px) {
+        .ob-card { padding: 16px; }
+        .ob-card-header { flex-direction: column; align-items: flex-start; }
+        .ob-best-bid, .ob-best-ask { font-size: 15px; }
+        .ob-price-row { flex-wrap: wrap; gap: 8px; }
+        .ob-spread-block { order: 3; width: 100%; text-align: center; }
+    }
+</style>
+
+<script>
+    // ============================================================
+    // Order Book Module — compact overview with imbalance gauge
+    // ============================================================
+    let orderbook = {
+        depthWs: null,
+        symbol: null,
+        reconnectTimer: null,
+        maxRows: 20,
+        bestAsk: null,
+        bestBid: null,
+        depthCache: { bids: {}, asks: {} },
+        depthRenderPending: false,
+        prevImbalance: null,
+    };
+
+    const depthCache = orderbook.depthCache;
+
+    /**
+     * Initialize (or re-initialize) the order book for a given symbol.
+     * Called from charts page's selectPair().
+     */
+    function initOrderBook(symbol) {
+        if (orderbook.depthWs) {
+            orderbook.depthWs.close();
+            orderbook.depthWs = null;
+        }
+        if (orderbook.reconnectTimer) {
+            clearTimeout(orderbook.reconnectTimer);
+            orderbook.reconnectTimer = null;
+        }
+
+        orderbook.symbol = symbol;
+        orderbook.depthCache.bids = {};
+        orderbook.depthCache.asks = {};
+
+        const section = document.getElementById('orderbookSection');
+        if (section) section.style.display = 'block';
+
+        // Reset display
+        document.getElementById('bestBidDisplay').textContent = '—';
+        document.getElementById('bestAskDisplay').textContent = '—';
+        document.getElementById('spreadValue').textContent = '—';
+        document.getElementById('spreadPct').textContent = '—';
+        document.getElementById('imbalancePct').textContent = '—';
+        document.getElementById('totalAskVol').textContent = '—';
+        document.getElementById('totalBidVol').textContent = '—';
+        document.getElementById('bidAskRatio').textContent = '—';
+        document.getElementById('depthLevels').textContent = '— levels';
+        document.getElementById('depthFooter').style.display = 'none';
+        setConsensus('loading', '⏳', 'Loading...');
+        setVerdict('neutral', 'Waiting for data...');
+        document.getElementById('depthStatus').textContent = 'Connecting...';
+        document.getElementById('depthStatus').className = 'ob-status disconnected';
+
+        fetchInitialDepth(symbol);
+        connectDepthWs(symbol);
+    }
+
+    // ── REST Snapshot ───────────────────────────────────────────
+    async function fetchInitialDepth(symbol) {
+        try {
+            const resp = await fetch(`/orderbook/depth/?symbol=${symbol}&limit=${orderbook.maxRows}`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            if (data.error) throw new Error(data.error);
+            renderOverview(data);
+        } catch (err) {
+            console.error('Order book fetch error:', err);
+        }
+    }
+
+    // ── WebSocket Connection ────────────────────────────────────
+    function connectDepthWs(symbol) {
+        if (orderbook.depthWs) orderbook.depthWs.close();
+
+        const url = `wss://stream.binance.com:9443/ws/${symbol}@depth20@100ms`;
+        orderbook.depthWs = new WebSocket(url);
+
+        orderbook.depthWs.onopen = () => {
+            document.getElementById('depthStatus').textContent = '● Live';
+            document.getElementById('depthStatus').className = 'ob-status connected';
+        };
+
+        orderbook.depthWs.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                updateDepthFromWs(data);
+            } catch (err) {
+                console.error('Depth WS error:', err);
+            }
+        };
+
+        orderbook.depthWs.onerror = () => {
+            document.getElementById('depthStatus').textContent = 'Error';
+            document.getElementById('depthStatus').className = 'ob-status disconnected';
+        };
+
+        orderbook.depthWs.onclose = () => {
+            document.getElementById('depthStatus').textContent = 'Disconnected';
+            document.getElementById('depthStatus').className = 'ob-status disconnected';
+            if (orderbook.symbol === symbol) {
+                orderbook.reconnectTimer = setTimeout(() => connectDepthWs(symbol), 3000);
+            }
+        };
+    }
+
+    // ── WebSocket Update Handler ────────────────────────────────
+    function updateDepthFromWs(data) {
+        // @depth20@100ms sends bids/asks fields (not b/a)
+        const bids = data.bids || data.b || [];
+        const asks = data.asks || data.a || [];
+
+        if (bids.length === 0 && asks.length === 0) return;
+
+        // Update bid cache
+        for (const [price, qty] of bids) {
+            const q = parseFloat(qty);
+            if (q === 0) delete depthCache.bids[price];
+            else depthCache.bids[price] = q;
+        }
+
+        // Update ask cache
+        for (const [price, qty] of asks) {
+            const q = parseFloat(qty);
+            if (q === 0) delete depthCache.asks[price];
+            else depthCache.asks[price] = q;
+        }
+
+        if (!orderbook.depthRenderPending) {
+            orderbook.depthRenderPending = true;
+            requestAnimationFrame(() => {
+                renderFromCache();
+                orderbook.depthRenderPending = false;
+            });
+        }
+    }
+
+    function renderFromCache() {
+        // Keys are strings from Binance (e.g. "74038.46000000"); keep as strings for cache lookup,
+        // but convert to numbers for the data array passed to renderOverview.
+        const askKeys = Object.keys(depthCache.asks)
+            .sort((a, b) => parseFloat(a) - parseFloat(b))
+            .slice(0, orderbook.maxRows);
+        const asks = askKeys.map(k => [parseFloat(k), depthCache.asks[k]]);
+
+        const bidKeys = Object.keys(depthCache.bids)
+            .sort((a, b) => parseFloat(b) - parseFloat(a))
+            .slice(0, orderbook.maxRows);
+        const bids = bidKeys.map(k => [parseFloat(k), depthCache.bids[k]]);
+
+        renderOverview({ asks, bids });
+    }
+
+    // ── Render Overview ─────────────────────────────────────────
+    function renderOverview(data) {
+        const asks = data.asks || [];
+        const bids = data.bids || [];
+        if (asks.length === 0 && bids.length === 0) return;
+
+        // Best bid/ask
+        orderbook.bestAsk = asks[0]?.[0] || null;
+        orderbook.bestBid = bids[0]?.[0] || null;
+
+        // Totals
+        const totalAskVol = asks.reduce((sum, [, q]) => sum + q, 0);
+        const totalBidVol = bids.reduce((sum, [, q]) => sum + q, 0);
+        const totalVol = totalAskVol + totalBidVol;
+
+        // Imbalance: bid proportion (0-100%)
+        const bidPct = totalVol > 0 ? (totalBidVol / totalVol) * 100 : 50;
+        const askPct = 100 - bidPct;
+
+        // Update best bid/ask and spread
+        if (orderbook.bestBid && orderbook.bestAsk) {
+            const spread = orderbook.bestAsk - orderbook.bestBid;
+            const spreadPct = (spread / orderbook.bestAsk) * 100;
+
+            document.getElementById('bestBidDisplay').textContent = formatPrice(orderbook.bestBid);
+            document.getElementById('bestAskDisplay').textContent = formatPrice(orderbook.bestAsk);
+            document.getElementById('spreadValue').textContent = formatPrice(spread);
+            document.getElementById('spreadPct').textContent = `(${spreadPct.toFixed(3)}%)`;
+        }
+
+        // Update imbalance display
+        document.getElementById('imbalancePct').textContent = `${bidPct.toFixed(1)}% Buy / ${askPct.toFixed(1)}% Sell`;
+
+        // Move gauge indicator
+        const indicator = document.getElementById('imbalanceIndicator');
+        // Map: 0% bid = extreme sell (left=5%), 100% bid = extreme buy (right=95%)
+        const leftPct = 5 + (bidPct / 100) * 90;
+        indicator.style.left = `${leftPct}%`;
+
+        // Determine consensus
+        let consensus, icon, label;
+        if (bidPct > 58) {
+            consensus = 'bullish';
+            icon = '🚀';
+            label = 'Bullish';
+        } else if (bidPct < 42) {
+            consensus = 'bearish';
+            icon = '🔻';
+            label = 'Bearish';
+        } else {
+            consensus = 'neutral';
+            icon = '➖';
+            label = 'Neutral';
+        }
+        setConsensus(consensus, icon, label);
+
+        // Verdict text
+        const verdictPct = Math.abs(bidPct - 50);
+        let verdictText;
+        if (consensus === 'bullish') {
+            verdictText = `Strong buy pressure — ${verdictPct.toFixed(1)}% more bids than asks`;
+        } else if (consensus === 'bearish') {
+            verdictText = `Strong sell pressure — ${verdictPct.toFixed(1)}% more asks than bids`;
+        } else {
+            verdictText = 'Book is balanced — no clear pressure';
+        }
+        setVerdict(consensus, verdictText);
+
+        // Flash effect on directional change
+        const card = document.getElementById('orderbookCard');
+        const now = bidPct > 50 ? 'buy' : 'sell';
+        if (orderbook.prevImbalance && orderbook.prevImbalance !== now) {
+            card.classList.remove('ob-flash-up', 'ob-flash-down');
+            void card.offsetWidth;
+            card.classList.add(now === 'buy' ? 'ob-flash-up' : 'ob-flash-down');
+        }
+        orderbook.prevImbalance = now;
+
+        // Volume footer
+        document.getElementById('depthFooter').style.display = 'block';
+        document.getElementById('totalAskVol').textContent = formatVolume(totalAskVol);
+        document.getElementById('totalBidVol').textContent = formatVolume(totalBidVol);
+        const ratio = totalBidVol > 0 ? (totalAskVol / totalBidVol).toFixed(2) : '∞';
+            document.getElementById('bidAskRatio').textContent = `1:${ratio}`;
+        document.getElementById('depthLevels').textContent = `${Math.max(asks.length, bids.length)} levels`;
+    }
+
+    // ── Consensus helpers ───────────────────────────────────────
+    function setConsensus(sentiment, icon, label) {
+        const el = document.getElementById('obConsensus');
+        el.className = `sentiment-gauge ${sentiment}`;
+        document.getElementById('obConsensusIcon').textContent = icon;
+        document.getElementById('obConsensusLabel').textContent = label;
+    }
+
+    function setVerdict(sentiment, text) {
+        const el = document.getElementById('imbalanceVerdict');
+        el.className = `ob-gauge-verdict ${sentiment}`;
+        const dot = document.getElementById('verdictDot');
+        dot.className = `ob-verdict-dot ${sentiment}`;
+        document.getElementById('verdictText').textContent = text;
+    }
+</script>

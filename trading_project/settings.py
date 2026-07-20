@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'portfolio',
     'sentiment',
     'ai_chat',
+    'orderbook',
 ]
 
 MIDDLEWARE = [
