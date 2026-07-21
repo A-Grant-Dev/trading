@@ -54,11 +54,12 @@ def ohlcv_to_dataframe(
         interval=interval,
     ).order_by("-open_time")[:limit]
 
-    data = list(qs.order_by("open_time").values(
+    # Cannot reorder after slicing, so reverse in Python
+    data = list(reversed(qs.values(
         "open_time", "open", "high", "low", "close",
         "volume", "quote_asset_volume", "trades",
         "taker_buy_base_vol", "taker_buy_quote_vol",
-    ))
+    )))
 
     if data and len(data) >= 20:
         df = pd.DataFrame(data)
@@ -212,13 +213,27 @@ def _compute_sma(values: np.ndarray, period: int) -> np.ndarray:
 
 
 def _compute_ema(values: np.ndarray, period: int) -> np.ndarray:
-    """Exponential Moving Average."""
+    """Exponential Moving Average with tolerance for leading NaN values."""
     result = np.full_like(values, np.nan, dtype=float)
     if len(values) < period:
         return result
     alpha = 2 / (period + 1)
-    result[period - 1] = np.mean(values[:period])
-    for i in range(period, len(values)):
+
+    # Find first position with `period` consecutive non-NaN values
+    mask = ~np.isnan(values)
+    start = period - 1
+    while start < len(values):
+        if mask[start - period + 1:start + 1].all():
+            result[start] = np.nanmean(values[start - period + 1:start + 1])
+            break
+        start += 1
+
+    if start >= len(values) or np.isnan(result[start]):
+        return result  # No valid segment found
+
+    for i in range(start + 1, len(values)):
+        if not mask[i]:
+            break  # Stop at next gap
         result[i] = alpha * values[i] + (1 - alpha) * result[i - 1]
     return result
 

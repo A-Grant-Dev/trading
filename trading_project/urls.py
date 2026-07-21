@@ -25,4 +25,5 @@ urlpatterns = [
     path('ai-chat/', include('ai_chat.urls')),
     path('orderbook/', include('orderbook.urls')),
     path('quant/', include('quant.urls')),
+    path('trading-bot/', include('trading_bot.urls')),
 ]

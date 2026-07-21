@@ -14,7 +14,6 @@
             min-height: 100vh;
         }
 
-        /* ── Header ─────────────────────────────────── */
         .header {
             background: linear-gradient(135deg, #161b22, #0d1117);
             border-bottom: 1px solid #30363d;
@@ -22,38 +21,27 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .header h1 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #f0f6fc;
-        }
-        .header .subtitle {
-            font-size: 12px;
-            color: #8b949e;
-            margin-top: 2px;
-        }
-        .header .status-badge {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
+        .header h1 { font-size: 20px; font-weight: 600; color: #f0f6fc; }
+        .header .subtitle { font-size: 12px; color: #8b949e; margin-top: 2px; }
+        .status-badge {
+            padding: 4px 14px; border-radius: 12px; font-size: 12px; font-weight: 500;
         }
         .status-badge.on { background: #1a7f37; color: #fff; }
         .status-badge.off { background: #da3633; color: #fff; }
         .status-badge.paper { background: #d29922; color: #fff; }
 
-        /* ── Grid Layout ────────────────────────────── */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 16px;
             padding: 16px 24px;
             max-width: 1600px;
             margin: 0 auto;
         }
 
-        /* ── Cards ──────────────────────────────────── */
         .card {
             background: #161b22;
             border: 1px solid #30363d;
@@ -72,7 +60,7 @@
             align-items: center;
         }
 
-        /* ── Regime Banner ──────────────────────────── */
+        /* Regime Banner */
         .regime-banner {
             grid-column: 1 / -1;
             background: linear-gradient(135deg, #161b22, #1c2333);
@@ -85,30 +73,26 @@
             flex-wrap: wrap;
             gap: 12px;
         }
-        .regime-label {
-            font-size: 24px;
-            font-weight: 700;
+        .regime-banner .regime-main { display: flex; align-items: center; gap: 16px; }
+        .regime-banner .regime-icon { font-size: 32px; }
+        .regime-banner .regime-label { font-size: 22px; font-weight: 700; }
+        .regime-banner .regime-label.ranging { color: #8b949e; }
+        .regime-banner .regime-label.bullish { color: #3fb950; }
+        .regime-banner .regime-label.bearish { color: #f85149; }
+        .regime-banner .regime-label.volatile { color: #d29922; }
+        .regime-banner .regime-detail { color: #8b949e; font-size: 13px; }
+        .regime-banner .regime-multi {
+            display: flex; gap: 24px; flex-wrap: wrap;
         }
-        .regime-label .emoji { margin-right: 8px; }
-        .regime-label .label.ranging { color: #8b949e; }
-        .regime-label .label.bullish { color: #3fb950; }
-        .regime-label .label.bearish { color: #f85149; }
-        .regime-label .label.volatile { color: #d29922; }
-        .regime-label .label.unknown { color: #8b949e; }
-        .regime-desc { color: #8b949e; font-size: 13px; max-width: 500px; }
-        .regime-conf {
-            font-size: 13px;
-            color: #8b949e;
-        }
-        .regime-conf strong { color: #e6edf3; }
+        .regime-banner .regime-multi-item { text-align: center; }
+        .regime-banner .regime-multi-item .symbol { font-size: 11px; color: #8b949e; }
+        .regime-banner .regime-multi-item .label { font-size: 14px; font-weight: 600; }
+        .regime-banner .regime-multi-item .conf { font-size: 11px; color: #8b949e; }
 
-        /* ── Metric Rows ────────────────────────────── */
+        /* Metric Rows */
         .metric-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #21262d;
-            font-size: 14px;
+            display: flex; justify-content: space-between;
+            padding: 7px 0; border-bottom: 1px solid #21262d; font-size: 13px;
         }
         .metric-row:last-child { border-bottom: none; }
         .metric-label { color: #8b949e; }
@@ -117,76 +101,148 @@
         .metric-value.negative { color: #f85149; }
         .metric-value.neutral { color: #d29922; }
 
-        /* ── Tables ─────────────────────────────────── */
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
         th {
-            text-align: left;
-            padding: 8px 6px;
-            color: #8b949e;
-            font-weight: 500;
-            border-bottom: 1px solid #30363d;
+            text-align: left; padding: 6px 4px; color: #8b949e;
+            font-weight: 500; border-bottom: 1px solid #30363d;
         }
-        td {
-            padding: 8px 6px;
-            border-bottom: 1px solid #21262d;
-        }
+        td { padding: 6px 4px; border-bottom: 1px solid #21262d; }
         tr:last-child td { border-bottom: none; }
         .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 10px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 500;
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 500;
         }
         .pill.long { background: #1a7f3733; color: #3fb950; }
         .pill.short { background: #da363333; color: #f85149; }
         .pill.neutral { background: #8b949e33; color: #8b949e; }
-        .pill .dot {
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            display: inline-block;
-        }
+        .pill .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
         .pill.long .dot { background: #3fb950; }
         .pill.short .dot { background: #f85149; }
         .pill.neutral .dot { background: #8b949e; }
 
-        /* ── Loading state ──────────────────────────── */
+        .pill.success { background: #1a7f3733; color: #3fb950; }
+        .pill.fail { background: #da363333; color: #f85149; }
+        .pill.running { background: #d2992233; color: #d29922; }
+        .pill.completed { background: #1a7f3733; color: #3fb950; }
+
+        /* Action Buttons */
+        .actions-bar {
+            grid-column: 1 / -1;
+            display: flex; flex-wrap: wrap; gap: 8px;
+            padding: 12px; background: #161b22;
+            border: 1px solid #30363d; border-radius: 8px;
+        }
+        .btn {
+            padding: 8px 16px; border: 1px solid #30363d; border-radius: 6px;
+            font-size: 12px; font-weight: 500; cursor: pointer;
+            background: #21262d; color: #e6edf3;
+            transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn:hover { background: #30363d; border-color: #8b949e; }
+        .btn:active { transform: scale(0.97); }
+        .btn.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+        .btn.primary:hover { background: #388bfd; }
+        .btn.success { background: #1a7f37; border-color: #1a7f37; color: #fff; }
+        .btn.success:hover { background: #238636; }
+        .btn.danger { background: #da3633; border-color: #da3633; color: #fff; }
+        .btn.danger:hover { background: #f85149; }
+        .btn.warning { background: #d29922; border-color: #d29922; color: #fff; }
+        .btn.warning:hover { background: #e3b341; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* Log Area */
+        .log-area {
+            grid-column: 1 / -1;
+            background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+            padding: 12px; font-family: 'Courier New', monospace;
+            font-size: 12px; max-height: 200px; overflow-y: auto;
+            color: #8b949e; white-space: pre-wrap;
+        }
+        .log-area .log-info { color: #58a6ff; }
+        .log-area .log-success { color: #3fb950; }
+        .log-area .log-error { color: #f85149; }
+        .log-area .log-warning { color: #d29922; }
+
+        /* Config Panel */
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .config-item {
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .config-item label { font-size: 11px; color: #8b949e; }
+        .config-item select, .config-item input {
+            padding: 6px 8px; border: 1px solid #30363d; border-radius: 4px;
+            background: #0d1117; color: #e6edf3; font-size: 12px;
+        }
+        .config-item select:focus, .config-item input:focus {
+            outline: none; border-color: #1f6feb;
+        }
+
+        /* Loading */
         .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 32px;
-            color: #8b949e;
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px; color: #8b949e; font-size: 13px;
         }
         .spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid #30363d;
-            border-top-color: #58a6ff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-right: 8px;
+            width: 16px; height: 16px; border: 2px solid #30363d;
+            border-top-color: #58a6ff; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin-right: 8px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ── Responsive ─────────────────────────────── */
+        /* Tabs */
+        .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #30363d; }
+        .tab {
+            padding: 6px 12px; font-size: 12px; cursor: pointer; color: #8b949e;
+            border-bottom: 2px solid transparent; transition: all 0.15s;
+        }
+        .tab:hover { color: #e6edf3; }
+        .tab.active { color: #f0f6fc; border-bottom-color: #1f6feb; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Progress bar */
+        .progress-bar {
+            height: 4px; background: #21262d; border-radius: 2px; overflow: hidden; margin: 4px 0;
+        }
+        .progress-fill {
+            height: 100%; border-radius: 2px; transition: width 0.5s;
+        }
+        .progress-fill.green { background: #3fb950; }
+        .progress-fill.red { background: #f85149; }
+        .progress-fill.yellow { background: #d29922; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 500;
+        }
+        .badge.hmm_regime { background: #1f6feb33; color: #58a6ff; }
+        .badge.random_forest { background: #1a7f3733; color: #3fb950; }
+        .badge.xgboost { background: #d2992233; color: #e3b341; }
+        .badge.ensemble { background: #da363333; color: #f85149; }
+        .badge.cointegration { background: #8b949e33; color: #8b949e; }
+
         @media (max-width: 768px) {
             .dashboard-grid { grid-template-columns: 1fr; padding: 12px; }
-            .header { flex-direction: column; gap: 8px; align-items: flex-start; }
+            .header { flex-direction: column; align-items: flex-start; }
             .regime-banner { flex-direction: column; align-items: flex-start; }
+            .actions-bar { flex-direction: column; }
+            .config-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
         <div>
             <h1>🧠 Quant Trading Dashboard</h1>
             <div class="subtitle">Renaissance-Inspired Systematic Trading Engine</div>
         </div>
-        <div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <span id="signal-count" style="font-size:12px;color:#8b949e;">📡 0 signals</span>
+            <span id="trade-count" style="font-size:12px;color:#8b949e;">🔄 0 trades</span>
             {% if config.mode == 'live' and config.is_enabled %}
                 <span class="status-badge on">● LIVE TRADING</span>
             {% elif config.mode == 'paper' %}
@@ -197,12 +253,26 @@
         </div>
     </div>
 
-    <!-- Dashboard Grid -->
     <div class="dashboard-grid">
-        <!-- Regime Banner (loaded via JS) -->
+        <!-- Regime Banner -->
         <div class="regime-banner" id="regime-banner">
             <div class="loading"><div class="spinner"></div> Loading regime data...</div>
         </div>
+
+        <!-- Actions Bar -->
+        <div class="actions-bar" id="actions-bar">
+            <button class="btn primary" onclick="runCommand('update_regime')">🔄 Update Regime</button>
+            <button class="btn primary" onclick="runCommand('discover_pairs')">🔍 Discover Pairs</button>
+            <button class="btn primary" onclick="runCommand('train_models','BTCUSDT')">🧠 Train BTC</button>
+            <button class="btn primary" onclick="runCommand('train_models','ETHUSDT')">🧠 Train ETH</button>
+            <button class="btn success" onclick="runCommand('toggle_mode','paper')">📝 Paper Mode</button>
+            <button class="btn" onclick="runCommand('toggle_mode','backtest')">🔬 Backtest Mode</button>
+            <button class="btn success" onclick="runCommand('status')">📋 Status</button>
+            <button class="btn" onclick="refreshAll()">🔄 Refresh All</button>
+        </div>
+
+        <!-- Log Output -->
+        <div class="log-area" id="log-area">Ready. Click an action button above to run a command.</div>
 
         <!-- Portfolio Card -->
         <div class="card" id="portfolio-card">
@@ -213,6 +283,12 @@
         <!-- Active Signals Card -->
         <div class="card" id="signals-card">
             <div class="card-header">📡 Active Signals</div>
+            <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+
+        <!-- Training History Card -->
+        <div class="card" id="training-card" style="grid-column: span 1;">
+            <div class="card-header">🧪 Training History</div>
             <div class="loading"><div class="spinner"></div> Loading...</div>
         </div>
 
@@ -230,14 +306,21 @@
 
         <!-- Performance Card -->
         <div class="card" id="performance-card">
-            <div class="card-header">📈 Performance (30d)</div>
+            <div class="card-header">📈 Performance</div>
             <div class="loading"><div class="spinner"></div> Loading...</div>
+        </div>
+
+        <!-- Configuration Card -->
+        <div class="card" id="config-card" style="grid-column: 1 / -1;">
+            <div class="card-header">⚙️ Configuration</div>
+            <div class="config-grid" id="config-grid">
+                <div class="loading"><div class="spinner"></div> Loading config...</div>
+            </div>
         </div>
     </div>
 
     <script>
-        // ── Fetch & Render ───────────────────────────────────────
-
+        // ── Utilities ─────────────────────────────────────────────
         async function fetchJSON(url) {
             const resp = await fetch(url);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -246,221 +329,391 @@
 
         function escapeHtml(text) {
             const div = document.createElement('div');
-            div.textContent = text;
+            div.textContent = text ?? '';
             return div.innerHTML;
         }
 
-        // ── Regime Banner ────────────────────────────────────────
+        function round(v, d = 2) { return typeof v === 'number' ? v.toFixed(d) : (v ?? '—'); }
 
+        function pct(v) { return typeof v === 'number' ? (v * 100).toFixed(1) + '%' : '—'; }
+
+        // ── Regime Banner ─────────────────────────────────────────
         async function renderRegime() {
             const el = document.getElementById('regime-banner');
             try {
                 const data = await fetchJSON('/quant/api/regime/');
-                // Find the first symbol with data
-                const symbols = Object.keys(data);
+                const symbols = Object.keys(data).filter(k => data[k] && data[k].regime_label && data[k].regime_label !== 'unknown');
+
                 if (symbols.length === 0) {
-                    el.innerHTML = '<div style="color:#8b949e">⚠️ No regime data available. Run <code>python manage.py update_regime</code> to train the HMM.</div>';
+                    el.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                            <div style="font-size:16px;color:#8b949e;">⚠️ No regime data. Click <strong>Update Regime</strong> to train HMM.</div>
+                        </div>
+                    `;
                     return;
                 }
 
-                const symbol = symbols[0];
-                const regime = data[symbol];
-                const label = regime.regime_label || 'unknown';
-                const conf = (regime.top_probability * 100).toFixed(1);
                 const emojis = { 'ranging': '➖', 'bullish': '🟢', 'bearish': '🔴', 'volatile': '🟡' };
-                const emoji = emojis[label] || '❓';
-
-                let html = `
-                    <div>
-                        <div class="regime-label">
-                            <span class="emoji">${emoji}</span>
-                            <span class="label ${label}">${label.toUpperCase()}</span>
+                const multiHtml = symbols.slice(0, 5).map(s => {
+                    const r = data[s];
+                    const label = r.regime_label || 'unknown';
+                    return `
+                        <div class="regime-multi-item">
+                            <div class="symbol">${s}</div>
+                            <div class="label ${label}">${emojis[label] || '❓'} ${label.toUpperCase()}</div>
+                            <div class="conf">${(r.top_probability * 100).toFixed(0)}% conf</div>
                         </div>
-                        <div class="regime-desc">${regime.regime_info?.[regime.regime_id]?.description || 'No description'}</div>
+                    `;
+                }).join('');
+
+                const first = data[symbols[0]];
+                const label = first.regime_label || 'unknown';
+                const desc = first.regime_info?.[first.regime_id]?.description || '';
+
+                el.innerHTML = `
+                    <div class="regime-main">
+                        <div class="regime-icon">${emojis[label] || '❓'}</div>
+                        <div>
+                            <div class="regime-label ${label}">${label.toUpperCase()}</div>
+                            <div class="regime-detail">${desc}</div>
+                            <div class="regime-detail" style="margin-top:4px;">
+                                Confidence: <strong>${(first.top_probability * 100).toFixed(1)}%</strong>
+                                · Data: <strong>${first.data_points || 0} candles</strong>
+                            </div>
+                        </div>
                     </div>
-                    <div class="regime-conf">
-                        Confidence: <strong>${conf}%</strong>
-                        &middot; Symbol: <strong>${symbol}</strong>
-                        &middot; Data: <strong>${regime.data_points || '?'} candles</strong>
-                    </div>
+                    <div class="regime-multi">${multiHtml}</div>
                 `;
-                el.innerHTML = html;
             } catch (e) {
-                el.innerHTML = `<div style="color:#f85149">⚠️ Failed to load regime: ${escapeHtml(e.message)}</div>`;
+                el.innerHTML = `<div style="color:#f85149;">⚠️ Regime: ${escapeHtml(e.message)}</div>`;
             }
         }
 
-        // ── Portfolio ────────────────────────────────────────────
-
+        // ── Portfolio ─────────────────────────────────────────────
         async function renderPortfolio() {
             const el = document.getElementById('portfolio-card');
             try {
-                const data = await fetchJSON('/quant/api/portfolio/');
-                const pnlClass = data.daily_pnl >= 0 ? 'positive' : 'negative';
+                const d = await fetchJSON('/quant/api/portfolio/');
+                const pnlCls = d.daily_pnl >= 0 ? 'positive' : 'negative';
                 el.innerHTML = `
                     <div class="card-header">📊 Portfolio</div>
-                    <div class="metric-row">
-                        <span class="metric-label">Mode</span>
-                        <span class="metric-value">${data.mode.toUpperCase()}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Balance</span>
-                        <span class="metric-value">$${data.virtual_balance.toLocaleString()}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Open Positions</span>
-                        <span class="metric-value">${data.open_positions} / ${data.max_open_positions}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Daily P&L</span>
-                        <span class="metric-value ${pnlClass}">${data.daily_pnl >= 0 ? '+' : ''}$${data.daily_pnl.toLocaleString()}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Win Rate (30d)</span>
-                        <span class="metric-value">${(data.win_rate_30d * 100).toFixed(1)}%</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Trades (30d)</span>
-                        <span class="metric-value">${data.total_trades_30d}</span>
-                    </div>
-                    <div class="metric-row">
-                        <span class="metric-label">Kelly Fraction</span>
-                        <span class="metric-value">${data.kelly_fraction}</span>
-                    </div>
+                    <div class="metric-row"><span class="metric-label">Mode</span><span class="metric-value">${d.mode.toUpperCase()}</span></div>
+                    <div class="metric-row"><span class="metric-label">Virtual Balance</span><span class="metric-value">$${(d.virtual_balance || 0).toLocaleString()}</span></div>
+                    <div class="metric-row"><span class="metric-label">Open Positions</span><span class="metric-value">${d.open_positions} / ${d.max_open_positions}</span></div>
+                    <div class="metric-row"><span class="metric-label">Daily P&L</span><span class="metric-value ${pnlCls}">${d.daily_pnl >= 0 ? '+' : ''}$${(d.daily_pnl || 0).toLocaleString()}</span></div>
+                    <div class="metric-row"><span class="metric-label">Win Rate (30d)</span><span class="metric-value">${pct(d.win_rate_30d)}</span></div>
+                    <div class="metric-row"><span class="metric-label">Trades (30d)</span><span class="metric-value">${d.total_trades_30d}</span></div>
+                    <div class="metric-row"><span class="metric-label">Kelly</span><span class="metric-value">${d.kelly_fraction}</span></div>
+                    <div class="metric-row"><span class="metric-label">Max Drawdown</span><span class="metric-value">${d.max_drawdown_pct}%</span></div>
                 `;
             } catch (e) {
-                el.innerHTML = `<div class="card-header">📊 Portfolio</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+                el.innerHTML = `<div class="card-header">📊 Portfolio</div><div style="color:#f85149;padding:8px;">⚠️ ${escapeHtml(e.message)}</div>`;
             }
         }
 
-        // ── Active Signals ───────────────────────────────────────
-
+        // ── Active Signals ────────────────────────────────────────
         async function renderSignals() {
             const el = document.getElementById('signals-card');
+            const countEl = document.getElementById('signal-count');
             try {
-                const data = await fetchJSON('/quant/api/signals/');
-                if (data.count === 0) {
-                    el.innerHTML = `<div class="card-header">📡 Active Signals</div><div style="padding:12px;color:#8b949e;">No active signals.</div>`;
+                const d = await fetchJSON('/quant/api/signals/');
+                countEl.textContent = `📡 ${d.count} signals`;
+                if (d.count === 0) {
+                    el.innerHTML = `<div class="card-header">📡 Active Signals</div><div style="padding:8px;color:#8b949e;font-size:13px;">No active signals. Run <strong>Update Regime</strong> or <strong>Train Models</strong> to generate signals.</div>`;
                     return;
                 }
-                let rows = data.signals.slice(0, 10).map(s => `
+                const rows = d.signals.slice(0, 10).map(s => `
                     <tr>
                         <td><span class="pill ${s.direction || 'neutral'}"><span class="dot"></span>${(s.direction || s.signal_type).toUpperCase()}</span></td>
                         <td>${escapeHtml(s.symbol || s.pair || '—')}</td>
                         <td>${(s.confidence * 100).toFixed(0)}%</td>
-                        <td>${s.source_model}</td>
-                        <td>${new Date(s.expiry).toLocaleTimeString()}</td>
+                        <td><span class="badge ${s.source_model}">${s.source_model}</span></td>
+                        <td style="font-size:11px;color:#8b949e;">${s.strength.toFixed(2)}</td>
+                        <td style="font-size:11px;color:#8b949e;">${new Date(s.expiry).toLocaleTimeString()}</td>
                     </tr>
                 `).join('');
                 el.innerHTML = `
-                    <div class="card-header">📡 Active Signals <span style="font-weight:400;color:#8b949e;">${data.count} total</span></div>
-                    <table><thead><tr><th>Signal</th><th>Symbol</th><th>Conf</th><th>Source</th><th>Expiry</th></tr></thead><tbody>${rows}</tbody></table>
+                    <div class="card-header">📡 Active Signals <span style="font-weight:400;color:#8b949e;">${d.count} total</span></div>
+                    <table><thead><tr><th>Signal</th><th>Symbol</th><th>Conf</th><th>Source</th><th>Str</th><th>Expiry</th></tr></thead><tbody>${rows}</tbody></table>
                 `;
             } catch (e) {
-                el.innerHTML = `<div class="card-header">📡 Active Signals</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+                countEl.textContent = '📡 ?';
+                el.innerHTML = `<div class="card-header">📡 Active Signals</div><div style="color:#f85149;padding:8px;">⚠️ ${escapeHtml(e.message)}</div>`;
             }
         }
 
-        // ── Recent Trades ────────────────────────────────────────
-
-        async function renderTrades() {
-            const el = document.getElementById('trades-card');
+        // ── Training History ──────────────────────────────────────
+        async function renderTraining() {
+            const el = document.getElementById('training-card');
             try {
-                const data = await fetchJSON('/quant/api/trades/recent/');
-                if (data.count === 0) {
-                    el.innerHTML = `<div class="card-header">🔄 Recent Trades</div><div style="padding:12px;color:#8b949e;">No trades yet.</div>`;
+                const d = await fetchJSON('/quant/api/training-logs/?limit=15');
+                if (d.count === 0) {
+                    el.innerHTML = `<div class="card-header">🧪 Training History</div><div style="padding:8px;color:#8b949e;font-size:13px;">No training runs yet. Click <strong>Update Regime</strong> or <strong>Train Models</strong> to start.</div>`;
                     return;
                 }
-                let rows = data.trades.slice(0, 10).map(t => {
-                    const pnlClass = t.pnl >= 0 ? 'positive' : 'negative';
-                    const time = new Date(t.entry_time).toLocaleTimeString();
+                const rows = d.logs.map(log => {
+                    const statusCls = log.status === 'completed' ? 'success' : log.status === 'failed' ? 'fail' : 'running';
+                    const metrics = log.metrics || {};
+                    let resultStr = '';
+                    if (log.model_type === 'hmm_regime' && metrics.regime_label) {
+                        resultStr = `${metrics.regime_label.toUpperCase()} (${(metrics.top_probability * 100).toFixed(0)}%)`;
+                    } else if (metrics.models) {
+                        const best = metrics.best_model || '';
+                        const m = metrics.models[best] || {};
+                        resultStr = best ? `${best}: ${pct(m.val_accuracy)} / ${pct(m.test_accuracy)}` : 'No models';
+                    } else {
+                        resultStr = log.status === 'completed' ? '✅ Done' : log.status === 'failed' ? '❌ Failed' : '⏳';
+                    }
                     return `
                         <tr>
-                            <td>${time}</td>
-                            <td>${escapeHtml(t.symbol)}</td>
-                            <td><span class="pill ${t.side}"><span class="dot"></span>${t.side.toUpperCase()}</span></td>
-                            <td>$${t.entry_price.toLocaleString()}</td>
-                            <td class="${pnlClass}">${t.pnl ? (t.pnl >= 0 ? '+' : '') + '$' + t.pnl.toLocaleString() : '—'}</td>
-                            <td>${escapeHtml(t.strategy || '—')}</td>
+                            <td><span class="badge ${log.model_type}">${log.model_type_display?.split(' ')[0] || log.model_type}</span></td>
+                            <td>${escapeHtml(log.symbol)}</td>
+                            <td><span class="pill ${statusCls}">${log.status}</span></td>
+                            <td style="font-size:11px;">${resultStr}</td>
+                            <td style="font-size:11px;color:#8b949e;">${log.duration_seconds ? log.duration_seconds.toFixed(1) + 's' : '—'}</td>
+                            <td style="font-size:11px;color:#8b949e;">${new Date(log.started_at).toLocaleString()}</td>
                         </tr>
                     `;
                 }).join('');
                 el.innerHTML = `
-                    <div class="card-header">🔄 Recent Trades <span style="font-weight:400;color:#8b949e;">last ${data.count}</span></div>
-                    <table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>P&L</th><th>Strategy</th></tr></thead><tbody>${rows}</tbody></table>
+                    <div class="card-header">🧪 Training History <span style="font-weight:400;color:#8b949e;">last ${d.count}</span></div>
+                    <table><thead><tr><th>Model</th><th>Symbol</th><th>Status</th><th>Result</th><th>Time</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table>
                 `;
             } catch (e) {
-                el.innerHTML = `<div class="card-header">🔄 Recent Trades</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+                el.innerHTML = `<div class="card-header">🧪 Training History</div><div style="color:#f85149;padding:8px;">⚠️ ${escapeHtml(e.message)}</div>`;
             }
         }
 
-        // ── Pairs ────────────────────────────────────────────────
+        // ── Recent Trades ─────────────────────────────────────────
+        async function renderTrades() {
+            const el = document.getElementById('trades-card');
+            const countEl = document.getElementById('trade-count');
+            try {
+                const d = await fetchJSON('/quant/api/trades/recent/');
+                countEl.textContent = `🔄 ${d.count} trades`;
+                if (d.count === 0) {
+                    el.innerHTML = `<div class="card-header">🔄 Recent Trades</div><div style="padding:8px;color:#8b949e;font-size:13px;">No trades yet. They appear after signal combination + execution.</div>`;
+                    return;
+                }
+                const rows = d.trades.slice(0, 8).map(t => {
+                    const pnlCls = t.pnl >= 0 ? 'positive' : 'negative';
+                    return `
+                        <tr>
+                            <td style="font-size:11px;color:#8b949e;">${new Date(t.entry_time).toLocaleTimeString()}</td>
+                            <td>${escapeHtml(t.symbol)}</td>
+                            <td><span class="pill ${t.side}"><span class="dot"></span>${t.side.toUpperCase()}</span></td>
+                            <td>$${round(t.entry_price)}</td>
+                            <td class="${pnlCls}" style="font-weight:600;">${t.pnl ? (t.pnl >= 0 ? '+' : '') + '$' + round(t.pnl) : '—'}</td>
+                            <td style="font-size:11px;">${escapeHtml(t.strategy?.substring(0, 15) || '—')}</td>
+                        </tr>
+                    `;
+                }).join('');
+                el.innerHTML = `
+                    <div class="card-header">🔄 Recent Trades <span style="font-weight:400;color:#8b949e;">last ${d.count}</span></div>
+                    <table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>P&L</th><th>Strat</th></tr></thead><tbody>${rows}</tbody></table>
+                `;
+            } catch (e) {
+                countEl.textContent = '🔄 ?';
+                el.innerHTML = `<div class="card-header">🔄 Recent Trades</div><div style="color:#f85149;padding:8px;">⚠️ ${escapeHtml(e.message)}</div>`;
+            }
+        }
 
+        // ── Pairs ─────────────────────────────────────────────────
         async function renderPairs() {
             const el = document.getElementById('pairs-card');
             try {
-                const data = await fetchJSON('/quant/api/pairs/');
-                if (data.count === 0) {
-                    el.innerHTML = `<div class="card-header">🔗 Cointegrated Pairs</div><div style="padding:12px;color:#8b949e;">No pairs discovered yet. Run <code>python manage.py discover_pairs</code>.</div>`;
+                const d = await fetchJSON('/quant/api/pairs/');
+                if (d.count === 0) {
+                    el.innerHTML = `<div class="card-header">🔗 Cointegrated Pairs</div><div style="padding:8px;color:#8b949e;font-size:13px;">No pairs discovered. Click <strong>Discover Pairs</strong> to scan for cointegrated relationships.</div>`;
                     return;
                 }
-                let rows = data.pairs.slice(0, 8).map(p => {
-                    const zClass = Math.abs(p.current_zscore || 0) > 2 ? 'positive' : 'neutral';
+                const rows = d.pairs.slice(0, 8).map(p => {
+                    const zCls = Math.abs(p.current_zscore || 0) > 2 ? 'positive' : 'neutral';
                     return `
                         <tr>
                             <td>${escapeHtml(p.symbol_a)}/${escapeHtml(p.symbol_b)}</td>
-                            <td>${p.coint_p_value ? p.coint_p_value.toFixed(4) : '—'}</td>
-                            <td>${p.half_life ? p.half_life.toFixed(1) + 'h' : '—'}</td>
-                            <td class="${zClass}">${p.current_zscore ? p.current_zscore.toFixed(2) : '—'}</td>
-                            <td>${p.win_rate ? (p.win_rate * 100).toFixed(0) + '%' : '—'}</td>
+                            <td>${p.coint_p_value ? p.coint_p_value.toExponential(2) : '—'}</td>
+                            <td>${p.half_life ? round(p.half_life) + 'h' : '—'}</td>
+                            <td class="${zCls}">${p.current_zscore ? round(p.current_zscore) : '—'}</td>
+                            <td>${p.win_rate ? pct(p.win_rate) : '—'}</td>
+                            <td>${p.total_trades || 0}</td>
                         </tr>
                     `;
                 }).join('');
                 el.innerHTML = `
-                    <div class="card-header">🔗 Cointegrated Pairs <span style="font-weight:400;color:#8b949e;">${data.count} active</span></div>
-                    <table><thead><tr><th>Pair</th><th>P-Value</th><th>Half-Life</th><th>Z-Score</th><th>Win Rate</th></tr></thead><tbody>${rows}</tbody></table>
+                    <div class="card-header">🔗 Cointegrated Pairs <span style="font-weight:400;color:#8b949e;">${d.count} active</span></div>
+                    <table><thead><tr><th>Pair</th><th>P-Val</th><th>½-Life</th><th>Z-Score</th><th>Win%</th><th>Trades</th></tr></thead><tbody>${rows}</tbody></table>
                 `;
             } catch (e) {
-                el.innerHTML = `<div class="card-header">🔗 Cointegrated Pairs</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+                el.innerHTML = `<div class="card-header">🔗 Cointegrated Pairs</div><div style="color:#f85149;padding:8px;">⚠️ ${escapeHtml(e.message)}</div>`;
             }
         }
 
-        // ── Performance ──────────────────────────────────────────
-
+        // ── Performance ───────────────────────────────────────────
         async function renderPerformance() {
             const el = document.getElementById('performance-card');
             try {
-                const data = await fetchJSON('/quant/api/performance/');
-                let stratRows = data.strategies.map(s => {
-                    const wrPct = (s.win_rate * 100).toFixed(1);
-                    return `
-                        <tr>
-                            <td>${escapeHtml(s.strategy)}</td>
-                            <td>${s.total_trades}</td>
-                            <td>${wrPct}%</td>
-                            <td>${s.sharpe_ratio || '—'}</td>
-                        </tr>
-                    `;
-                }).join('');
+                const d = await fetchJSON('/quant/api/performance/');
+                const stratRows = d.strategies.map(s => `
+                    <tr>
+                        <td>${escapeHtml(s.strategy)}</td>
+                        <td>${s.total_trades}</td>
+                        <td>${pct(s.win_rate)}</td>
+                        <td>${s.sharpe_ratio || '—'}</td>
+                    </tr>
+                `).join('');
                 el.innerHTML = `
                     <div class="card-header">📈 Performance (30d)</div>
-                    <table><thead><tr><th>Strategy</th><th>Trades</th><th>Win Rate</th><th>Sharpe</th></tr></thead><tbody>${stratRows || '<tr><td colspan="4" style="color:#8b949e;">No performance data yet.</td></tr>'}</tbody></table>
+                    <table><thead><tr><th>Strategy</th><th>Trades</th><th>Win Rate</th><th>Sharpe</th></tr></thead>
+                    <tbody>${stratRows || '<tr><td colspan="4" style="color:#8b949e;text-align:center;padding:12px;">No performance data yet.</td></tr>'}</tbody></table>
                 `;
             } catch (e) {
-                el.innerHTML = `<div class="card-header">📈 Performance (30d)</div><div style="color:#f85149;padding:12px;">⚠️ ${escapeHtml(e.message)}</div>`;
+                el.innerHTML = `<div class="card-header">📈 Performance</div><div style="color:#f85149;padding:8px;">⚠️ ${escapeHtml(e.message)}</div>`;
             }
         }
 
+        // ── Configuration ─────────────────────────────────────────
+        async function renderConfig() {
+            const el = document.getElementById('config-grid');
+            try {
+                const d = await fetchJSON('/quant/api/config/');
+                el.innerHTML = `
+                    <div class="config-item">
+                        <label>Mode</label>
+                        <select id="cfg-mode" onchange="updateConfig('mode', this.value)">
+                            <option value="backtest" ${d.mode === 'backtest' ? 'selected' : ''}>🔬 Backtest</option>
+                            <option value="paper" ${d.mode === 'paper' ? 'selected' : ''}>📝 Paper Trading</option>
+                            <option value="live" ${d.mode === 'live' ? 'selected' : ''}>🔴 Live Trading</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>Enabled</label>
+                        <select id="cfg-enabled" onchange="updateConfig('is_enabled', this.value)">
+                            <option value="true" ${d.is_enabled ? 'selected' : ''}>✅ Yes</option>
+                            <option value="false" ${!d.is_enabled ? 'selected' : ''}>❌ No</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>Max Open Positions</label>
+                        <input type="number" id="cfg-positions" value="${d.max_open_positions}" min="1" max="20" onchange="updateConfig('max_open_positions', this.value)">
+                    </div>
+                    <div class="config-item">
+                        <label>Max Position Size (%)</label>
+                        <input type="number" id="cfg-pos-pct" value="${d.max_position_size_pct}" min="1" max="50" onchange="updateConfig('max_position_size_pct', this.value)">
+                    </div>
+                    <div class="config-item">
+                        <label>Max Daily Loss (%)</label>
+                        <input type="number" id="cfg-loss" value="${d.max_daily_loss_pct}" min="1" max="50" onchange="updateConfig('max_daily_loss_pct', this.value)">
+                    </div>
+                    <div class="config-item">
+                        <label>Max Drawdown (%)</label>
+                        <input type="number" id="cfg-drawdown" value="${d.max_drawdown_pct}" min="1" max="50" onchange="updateConfig('max_drawdown_pct', this.value)">
+                    </div>
+                    <div class="config-item">
+                        <label>Kelly Fraction</label>
+                        <select id="cfg-kelly" onchange="updateConfig('kelly_fraction', this.value)">
+                            <option value="full" ${d.kelly_fraction === 'full' ? 'selected' : ''}>Full</option>
+                            <option value="half" ${d.kelly_fraction === 'half' ? 'selected' : ''}>Half</option>
+                            <option value="quarter" ${d.kelly_fraction === 'quarter' ? 'selected' : ''}>Quarter</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>Virtual Balance</label>
+                        <div style="font-size:14px;font-weight:600;color:#f0f6fc;padding:4px 0;">$${d.virtual_balance.toLocaleString()}</div>
+                    </div>
+                `;
+            } catch (e) {
+                el.innerHTML = `<div style="color:#f85149;">⚠️ ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        async function updateConfig(field, value) {
+            try {
+                const resp = await fetch('/quant/api/config/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `${field}=${encodeURIComponent(value)}`,
+                });
+                const data = await resp.json();
+                if (data.status === 'updated') {
+                    log(`⚙️ ${field} updated`, 'success');
+                    renderConfig();
+                    renderPortfolio();
+                }
+            } catch (e) {
+                log(`⚙️ Config update failed: ${e.message}`, 'error');
+            }
+        }
+
+        // ── Run Commands ──────────────────────────────────────────
+        const logArea = document.getElementById('log-area');
+
+        function log(msg, type = 'info') {
+            const line = document.createElement('div');
+            line.className = `log-${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logArea.appendChild(line);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        async function runCommand(cmd, arg) {
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(b => b.disabled = true);
+            log(`🚀 Running: ${cmd} ${arg || ''}`, 'info');
+            logArea.innerHTML = '';
+
+            try {
+                let url = `/quant/api/run-command/?cmd=${cmd}`;
+                if (arg) url += `&arg=${arg}`;
+                log(`⏳ Waiting for results...`, 'info');
+
+                const resp = await fetch(url);
+                const data = await resp.json();
+
+                if (data.status === 'error') {
+                    log(`❌ Error: ${data.error}`, 'error');
+                } else {
+                    if (data.output && Array.isArray(data.output)) {
+                        data.output.forEach(line => {
+                            if (line.startsWith('ERROR') || line.startsWith('Error') || line.includes('❌')) {
+                                log(line, 'error');
+                            } else if (line.startsWith('WARNING') || line.includes('⚠️')) {
+                                log(line, 'warning');
+                            } else if (line.includes('SUCCESS') || line.includes('✅') || line.includes('✓') || line.includes('📡')) {
+                                log(line, 'success');
+                            } else {
+                                log(line, 'info');
+                            }
+                        });
+                    }
+                    if (data.status === 'ok') {
+                        log('✅ Command completed successfully', 'success');
+                        refreshAll();
+                    }
+                }
+            } catch (e) {
+                log(`❌ Failed: ${e.message}`, 'error');
+            } finally {
+                buttons.forEach(b => b.disabled = false);
+            }
+        }
+
+        function refreshAll() {
+            renderRegime();
+            renderPortfolio();
+            renderSignals();
+            renderTraining();
+            renderTrades();
+            renderPairs();
+            renderPerformance();
+            renderConfig();
+            log('🔄 Dashboard refreshed', 'info');
+        }
+
         // ── Initial Load ─────────────────────────────────────────
+        refreshAll();
 
-        renderRegime();
-        renderPortfolio();
-        renderSignals();
-        renderTrades();
-        renderPairs();
-        renderPerformance();
-
-        // Auto-refresh every 30 seconds
+        // Auto-refresh
         setInterval(() => {
             renderRegime();
             renderPortfolio();
@@ -469,9 +722,10 @@
         }, 30000);
 
         setInterval(() => {
+            renderTraining();
             renderPairs();
             renderPerformance();
-        }, 300000); // Pairs & performance refresh slower (5 min)
+        }, 120000);
     </script>
 </body>
 </html>

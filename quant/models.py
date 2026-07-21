@@ -13,6 +13,66 @@ Inspired by Jim Simons' Renaissance Technologies:
 from django.db import models
 
 
+class TrainingLog(models.Model):
+    """
+    Training log for all quant model training runs.
+
+    Persists every training run so the dashboard can display
+    historical results, compare settings, and show what changed.
+
+    Every time a command runs or models train, a record is created here.
+    """
+
+    MODEL_TYPES = [
+        ("hmm_regime", "HMM Regime Detection"),
+        ("random_forest", "Random Forest"),
+        ("xgboost", "XGBoost"),
+        ("ensemble", "Ensemble"),
+        ("cointegration", "Cointegration / Pairs"),
+    ]
+
+    STATUS_CHOICES = [
+        ("running", "Running"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+
+    model_type = models.CharField(max_length=30, choices=MODEL_TYPES, db_index=True)
+    symbol = models.CharField(max_length=20, db_index=True)
+    interval = models.CharField(max_length=5, default="1h")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="running")
+
+    # Training configuration (what settings were used)
+    config = models.JSONField(default=dict, blank=True, help_text="Training parameters used")
+
+    # Results/metrics
+    metrics = models.JSONField(default=dict, blank=True, help_text="Performance metrics from training")
+    feature_importance = models.JSONField(null=True, blank=True, help_text="Top features by importance")
+
+    # Data info
+    data_points = models.IntegerField(null=True, blank=True)
+    feature_count = models.IntegerField(null=True, blank=True)
+
+    # Timing
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.FloatField(null=True, blank=True)
+
+    # Error handling
+    error_message = models.TextField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["model_type", "symbol", "-started_at"]),
+            models.Index(fields=["-started_at"]),
+        ]
+        ordering = ["-started_at"]
+        verbose_name_plural = "Training logs"
+
+    def __str__(self):
+        return f"{self.get_model_type_display()} {self.symbol} @ {self.started_at}"
+
+
 class MarketData(models.Model):
     """
     OHLCV kline storage — the primary time-series table.

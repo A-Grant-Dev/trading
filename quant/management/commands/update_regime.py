@@ -3,13 +3,13 @@ Management Command: Update Market Regime
 
 Periodically fetches the latest market data, rebuilds HMM features,
 and recomputes the current market regime for each tracked symbol.
-
-Can be run via cron/systemd timer or called from the live dashboard.
+Now persists results to TrainingLog and generates TradeSignals.
 
 Usage:
     python manage.py update_regime
     python manage.py update_regime --symbols BTCUSDT,ETHUSDT
     python manage.py update_regime --interval 5m --limit 500
+    python manage.py update_regime --generate-signals
 
 Renaissance principle: The regime must be continuously updated.
 Markets change character without warning, and the model must adapt.
@@ -18,7 +18,8 @@ Markets change character without warning, and the model must adapt.
 import logging
 import os
 import pickle
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -26,6 +27,7 @@ import pandas as pd
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from quant.models import TradeSignal, TrainingLog
 from quant.services.data_utils import ohlcv_to_dataframe
 from quant.services.hmm_regime import (
     MarketRegimeDetector,
@@ -103,26 +105,78 @@ class Command(BaseCommand):
             action="store_true",
             help="Force retrain the HMM model even if already trained",
         )
+        parser.add_argument(
+            "--generate-signals",
+            action="store_true",
+            default=True,
+            help="Generate TradeSignals from regime data (default: True)",
+        )
+        parser.add_argument(
+            "--no-signals",
+            action="store_false",
+            dest="generate_signals",
+            help="Skip TradeSignal generation",
+        )
 
     def handle(self, *args, **options):
         symbols = [s.strip().upper() for s in options["symbols"].split(",")]
         interval = options["interval"]
         limit = options["limit"]
         force_retrain = options["force_retrain"]
+        generate_signals = options["generate_signals"]
 
         self.stdout.write(f"Updating regime for {len(symbols)} symbols [{', '.join(symbols)}]...")
 
         results = {}
         for symbol in symbols:
+            start_time = time.time()
+            log = TrainingLog.objects.create(
+                model_type="hmm_regime",
+                symbol=symbol,
+                interval=interval,
+                status="running",
+                config={
+                    "limit": limit,
+                    "force_retrain": force_retrain,
+                    "n_states": 4,
+                },
+            )
             try:
                 result = self._update_symbol_regime(symbol, interval, limit, force_retrain)
+                result["symbol"] = symbol
                 results[symbol] = result
+
+                # Save training log
+                duration = time.time() - start_time
+                log.status = "completed"
+                log.completed_at = datetime.now(timezone.utc)
+                log.duration_seconds = round(duration, 2)
+                log.data_points = result.get("data_points", 0)
+                log.metrics = {
+                    "regime_label": result.get("regime_label", "unknown"),
+                    "regime_id": result.get("regime_id", -1),
+                    "top_probability": result.get("top_probability", 0),
+                    "probabilities": result.get("probabilities", {}),
+                    "n_states": 4,
+                }
+                log.save()
+
                 self.stdout.write(
                     f"  {symbol}: {result['regime_label']} "
-                    f"(conf: {result['top_probability']:.1%})"
+                    f"(conf: {result['top_probability']:.1%}) "
+                    f"[{duration:.1f}s]"
                 )
+
+                # Generate TradeSignals from regime data
+                if generate_signals and result["regime_label"] != "unknown":
+                    self._generate_signal(symbol, result)
+
             except Exception as e:
                 logger.exception(f"Failed to update regime for {symbol}")
+                log.status = "failed"
+                log.error_message = str(e)
+                log.completed_at = datetime.now(timezone.utc)
+                log.save()
                 results[symbol] = {"error": str(e)}
                 self.stderr.write(f"  {symbol}: ERROR — {e}")
 
@@ -130,6 +184,52 @@ class Command(BaseCommand):
         set_cache("regime:all", results)
 
         self.stdout.write(self.style.SUCCESS(f"Regime update complete for {len(symbols)} symbols"))
+
+    def _generate_signal(self, symbol: str, result: dict) -> None:
+        """
+        Generate TradeSignals from regime detection results.
+        
+        Creates signals when regime indicates trading opportunities:
+          - bullish → long signal
+          - bearish → short signal
+          - ranging → neutral (no direction)
+          - volatile → no signal (too risky)
+        """
+        label = result["regime_label"]
+        confidence = result["top_probability"]
+
+        # Deactivate old regime signals for this symbol
+        TradeSignal.objects.filter(
+            symbol=symbol,
+            source_model="hmm_regime",
+            status="active",
+        ).update(status="expired")
+
+        # Only create direction signals for trending regimes
+        direction = None
+        if label == "bullish" and confidence > 0.5:
+            direction = "long"
+        elif label == "bearish" and confidence > 0.5:
+            direction = "short"
+
+        if direction:
+            TradeSignal.objects.create(
+                symbol=symbol,
+                signal_type=direction,
+                direction=direction,
+                strength=round(confidence, 4),
+                confidence=round(confidence, 4),
+                source_model="hmm_regime",
+                expiry=datetime.now(timezone.utc) + timedelta(hours=6),
+                status="active",
+                metadata={
+                    "regime": label,
+                    "regime_id": result["regime_id"],
+                    "top_probability": confidence,
+                    "probabilities": result.get("probabilities", {}),
+                    "signal_type": "regime_based",
+                },
+            )
 
     def _update_symbol_regime(
         self,

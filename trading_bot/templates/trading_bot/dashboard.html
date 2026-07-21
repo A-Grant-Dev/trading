@@ -1,0 +1,350 @@
+{% extends "admin/base.html" %}{% load static %}
+{% block title %}Trading Bot Dashboard{% endblock %}
+{% block extrastyle %}
+<style>
+:root{--bg:#0f1117;--bg2:#1a1d28;--card:#1e2230;--hover:#252a3a;--text:#e4e6ef;--sec:#9196a8;--grn:#22c55e;--red:#ef4444;--blu:#3b82f6;--ylw:#eab308;--border:#2a2e3e;--radius:12px;--t:.2s}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;padding:20px}
+.container{max-width:1440px;margin:0 auto}
+/* header */
+.header{display:flex;justify-content:space-between;align-items:center;padding:20px 0;border-bottom:1px solid var(--border);margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.header h1{font-size:24px;font-weight:700;background:linear-gradient(135deg,var(--blu),var(--grn));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;transition:var(--t);cursor:default}
+.stat-card:hover{border-color:var(--blu);transform:translateY(-2px);box-shadow:0 4px 20px rgba(59,130,246,.15)}
+.stat-value{font-size:26px;font-weight:700;margin-bottom:4px;transition:var(--t)}
+.stat-label{font-size:11px;color:var(--sec);text-transform:uppercase;letter-spacing:.5px}
+.stat-card.loading{opacity:.6}
+.stat-card.htmx-request{opacity:.6}
+/* cards */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:var(--t)}
+.card.htmx-request{opacity:.6}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.card-title{font-size:13px;font-weight:600;text-transform:uppercase;color:var(--sec);letter-spacing:.5px}
+.card-badge{font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;letter-spacing:.3px}
+/* tables */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 8px;color:var(--sec);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover{background:var(--hover)}
+tr:last-child td{border-bottom:none}
+/* badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.3px}
+.badge-green{background:rgba(34,197,94,.15);color:var(--grn)}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--blu)}
+.badge-yellow{background:rgba(234,179,8,.15);color:var(--ylw)}
+.badge-gray{background:rgba(145,150,168,.15);color:var(--sec)}
+.dir-long{color:var(--grn);font-weight:600}
+.dir-short{color:var(--red);font-weight:600}
+.dir-neut{color:var(--sec)}
+/* empty */
+.empty-state{text-align:center;padding:32px 20px;color:var(--sec)}
+.empty-state p{margin-bottom:12px;font-size:14px}
+.empty-hint{font-size:12px;opacity:.6}
+/* colors */
+.t-grn{color:var(--grn)}.t-red{color:var(--red)}.t-blu{color:var(--blu)}.t-ylw{color:var(--ylw)}
+/* actions bar */
+.actions-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)}
+.action-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;transition:var(--t);text-decoration:none}
+.action-btn:hover{border-color:var(--blu);background:var(--hover);transform:translateY(-1px)}
+.action-btn.danger:hover{border-color:var(--red)}
+.action-btn:disabled{opacity:.4;cursor:not-allowed}
+.action-btn.htmx-request{opacity:.6;pointer-events:none}
+/* refresh spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--sec);border-top-color:var(--blu);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+.htmx-indicator{opacity:0;transition:opacity .2s}
+.htmx-request .htmx-indicator{opacity:1}
+/* progress bar */
+.progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:4px 0}
+.progress-fill{height:100%;border-radius:2px;transition:width .3s}
+/* pulse */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;animation:pulse 2s infinite}
+.live-dot.green{background:var(--grn);box-shadow:0 0 6px var(--grn)}
+.live-dot.red{background:var(--red);box-shadow:0 0 6px var(--red)}
+/* toasts */
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 20px;border-radius:8px;color:#fff;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.3);animation:slideIn .3s;max-width:400px}
+.toast-success{background:var(--grn)}.toast-error{background:var(--red)}.toast-info{background:var(--blu)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+/* responsive */
+@media(max-width:768px){.cards-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" x-data="dashboardApp()" x-init="init()">
+    <!-- Header -->
+    <div class="header">
+        <h1>🤖 Trading Bot Dashboard</h1>
+        <div class="header-actions">
+            <span class="badge badge-blue">Phase 9 — Live Dashboard</span>
+            <span class="badge" :class="{'badge-green': enabled, 'badge-red': !enabled}" x-text="enabled ? 'ENABLED' : 'DISABLED'"></span>
+            <span class="badge" :class="{'badge-green': mode==='live', 'badge-yellow': mode==='paper', 'badge-gray': mode==='backtest'}" x-text="mode.toUpperCase()"></span>
+            <span class="live-dot" :class="enabled ? 'green' : 'red'"></span>
+        </div>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="actions-bar">
+        <a href="?full_refresh=1" class="action-btn">🔄 Full Page Refresh</a>
+    </div>
+
+    <!-- Stats Grid (Alpine.js updates via polling) -->
+    <div id="stats-grid" class="stats-grid">
+        <div class="stat-card"><div class="stat-value t-blu" x-text="stats.active_strategies">{{ active_strategies }}</div><div class="stat-label">Active Strategies</div></div>
+        <div class="stat-card"><div class="stat-value t-grn" x-text="stats.active_signals">{{ active_signals }}</div><div class="stat-label">Active Signals</div></div>
+        <div class="stat-card"><div class="stat-value t-ylw" x-text="stats.open_trades">{{ open_trades }}</div><div class="stat-label">Open Trades</div></div>
+        <div class="stat-card"><div class="stat-value" x-text="stats.total_backtests">{{ total_backtests }}</div><div class="stat-label">Backtest Runs</div></div>
+        <div class="stat-card"><div class="stat-value" x-text="stats.ohlcv_candles">{{ ohlcv_count }}</div><div class="stat-label">OHLCV Candles</div></div>
+        <div class="stat-card"><div class="stat-value" x-text="stats.total_features">{{ total_features }}</div><div class="stat-label">Feature Snapshots</div></div>
+        <div class="stat-card"><div class="stat-value t-ylw" x-text="stats.live_params">{{ live_params|length }}</div><div class="stat-label">Live ParamSets</div></div>
+        <div class="stat-card"><div class="stat-value t-ylw" x-text="stats.candidate_params">{{ candidate_params|length }}</div><div class="stat-label">Candidates</div></div>
+        <div class="stat-card"><div class="stat-value" x-text="stats.optimization_runs">{{ optimization_runs }}</div><div class="stat-label">Optimization Runs</div></div>
+        <div class="stat-card"><div class="stat-value" x-text="stats.win_rate + '%'">0%</div><div class="stat-label">Win Rate</div></div>
+    </div>
+
+    <!-- Cards Grid -->
+    <div class="cards-grid">
+        <!-- Signals Card -->
+        <div class="card" id="signals-card">
+            <div class="card-header"><span class="card-title">📊 Active Signals</span><span class="card-badge badge-blue" x-text="stats.active_signals + ' active'">{{ active_signals }} active</span></div>
+            <div class="table-wrap">
+                <span id="signals-indicator" class="htmx-indicator spinner"></span>
+                <table><thead><tr><th>Time</th><th>Symbol</th><th>Dir</th><th>Conf</th><th>Strategy</th></tr></thead>
+                <tbody id="signals-body">
+                    {% if recent_signals %}{% for s in recent_signals %}
+                    <tr>
+                        <td>{{ s.timestamp|date:"H:i" }}</td>
+                        <td><strong>{{ s.symbol }}</strong></td>
+                        <td>{% if s.direction == 1 %}<span class="dir-long">▲</span>{% elif s.direction == -1 %}<span class="dir-short">▼</span>{% else %}<span class="dir-neut">◆</span>{% endif %}</td>
+                        <td><span class="badge {% if s.confidence > 0.7 %}badge-green{% elif s.confidence > 0.4 %}badge-yellow{% else %}badge-gray{% endif %}">{{ s.confidence|floatformat:0 }}%</span></td>
+                        <td>{{ s.strategy.name }}</td>
+                    </tr>
+                    {% endfor %}{% else %}
+                    <tr><td colspan="5"><div class="empty-state"><p>No signals yet</p></div></td></tr>
+                    {% endif %}
+                </tbody></table>
+            </div>
+        </div>
+
+        <!-- Trades Card -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">💼 Recent Trades</span><span class="card-badge badge-green" x-text="stats.total_trades + ' total'">{{ total_trades }} total</span></div>
+            <div class="table-wrap">
+                <table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>PnL</th><th>Mode</th></tr></thead>
+                <tbody id="trades-body">
+                    {% if recent_trades %}{% for t in recent_trades %}
+                    <tr>
+                        <td>{{ t.entry_time|date:"H:i" }}</td>
+                        <td><strong>{{ t.symbol }}</strong></td>
+                        <td>{% if t.side == "buy" %}<span class="dir-long">▲ BUY</span>{% else %}<span class="dir-short">▼ SELL</span>{% endif %}</td>
+                        <td>${{ t.entry_price|floatformat:2 }}</td>
+                        <td>{% if t.pnl %}<span class="{% if t.pnl > 0 %}t-grn{% elif t.pnl < 0 %}t-red{% endif %}">{% if t.pnl > 0 %}+{% endif %}${{ t.pnl|floatformat:2 }}</span>{% else %}<span class="t-ylw">open</span>{% endif %}</td>
+                        <td><span class="badge badge-gray">{{ t.mode|upper }}</span></td>
+                    </tr>
+                    {% endfor %}{% else %}
+                    <tr><td colspan="6"><div class="empty-state"><p>No trades yet</p></div></td></tr>
+                    {% endif %}
+                </tbody></table>
+            </div>
+        </div>
+
+        <!-- Backtests Card -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">📈 Backtest Results</span><span class="card-badge badge-blue" x-text="stats.total_backtests + ' runs'">{{ total_backtests }} runs</span></div>
+            <div class="table-wrap">
+                <span id="bt-indicator" class="htmx-indicator spinner"></span>
+                <table><thead><tr><th>Strategy</th><th>Sharpe</th><th>Win%</th><th>Return</th><th>Trades</th></tr></thead>
+                <tbody id="backtests-body">
+                    {% if latest_backtests %}{% for b in latest_backtests %}
+                    <tr>
+                        <td><strong>{{ b.param_set.strategy.name|default:"?" }}</strong></td>
+                        <td>{% if b.metrics.sharpe_ratio %}<span class="{% if b.metrics.sharpe_ratio > 1 %}t-grn{% elif b.metrics.sharpe_ratio > 0 %}t-ylw{% else %}t-red{% endif %}">{{ b.metrics.sharpe_ratio|floatformat:2 }}</span>{% else %}—{% endif %}</td>
+                        <td>{{ b.metrics.win_rate|default:"—"|floatformat:1 }}%</td>
+                        <td class="{% if b.total_return_pct > 0 %}t-grn{% elif b.total_return_pct < 0 %}t-red{% endif %}">{{ b.total_return_pct|default:0|floatformat:1 }}%</td>
+                        <td>{{ b.metrics.total_trades|default:"—"|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}{% else %}
+                    <tr><td colspan="5"><div class="empty-state"><p>No backtests yet</p></div></td></tr>
+                    {% endif %}
+                </tbody></table>
+            </div>
+        </div>
+
+        <!-- ParamSet Leaderboard Card (Alpine.js reactive) -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🏆 ParamSet Leaderboard</span><span class="card-badge badge-green" x-text="stats.live_params + ' live'">{{ live_params|length }} live</span></div>
+            <div class="table-wrap">
+                <table><thead><tr><th>Strategy</th><th>Status</th><th>Sharpe</th><th>Win%</th><th>Created</th></tr></thead>
+                <tbody>
+                    {% for p in live_params %}
+                    <tr><td><strong>{{ p.strategy.name }}</strong></td><td><span class="badge badge-green">LIVE</span></td><td>{{ p.metrics.sharpe_ratio|default:"—"|floatformat:2 }}</td><td>{{ p.metrics.win_rate|default:"—"|floatformat:1 }}%</td><td>{{ p.created_at|date:"m/d" }}</td></tr>
+                    {% endfor %}
+                    {% if not live_params and not candidate_params %}
+                    <tr><td colspan="5"><div class="empty-state"><p>No ParamSets yet</p></div></td></tr>
+                    {% endif %}
+                </tbody></table>
+                {% if candidate_params %}
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+                    <small style="color:var(--sec);font-weight:600">Candidates</small>
+                    <table><tbody>
+                        {% for p in candidate_params %}
+                        <tr><td>{{ p.strategy.name }}</td><td><span class="badge badge-yellow">CANDIDATE</span></td><td>{{ p.metrics.sharpe_ratio|default:"—"|floatformat:2 }}</td><td>{{ p.metrics.win_rate|default:"—"|floatformat:1 }}%</td><td>{{ p.created_at|date:"m/d" }}</td></tr>
+                        {% endfor %}
+                    </tbody></table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Paper Trading Card -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">💰 Paper Trading</span><span class="card-badge badge-green" x-text="paper.open_trades + ' open'">0 open</span></div>
+            <div class="table-wrap">
+                <span id="paper-indicator" class="htmx-indicator spinner"></span>
+                <div id="paper-status">
+                {% if total_trades > 0 %}
+                <table><tbody>
+                    <tr><td>Balance</td><td><strong x-text="'$' + (stats.current_balance || 10000).toLocaleString()">$10,000</strong></td></tr>
+                    <tr><td>Open Exposure</td><td x-text="'$' + (paper.open_exposure || 0).toLocaleString()">$0</td></tr>
+                    <tr><td>Win Rate</td><td x-text="paper.win_rate + '%'">0%</td></tr>
+                    <tr><td>Total PnL</td><td :class="paper.total_pnl >= 0 ? 't-grn' : 't-red'" x-text="(paper.total_pnl >= 0 ? '+' : '') + '$' + (paper.total_pnl || 0).toLocaleString()">$0</td></tr>
+                </tbody></table>
+                {% else %}
+                <div class="empty-state"><p>No paper trades yet</p>
+                    <div class="empty-hint">Enable trading & run <code>--continuous --interval 60</code></div>
+                </div>
+                {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Optimization History Card -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🔬 Optimization</span><span class="card-badge badge-yellow" x-text="stats.optimization_runs + ' runs'">{{ optimization_runs }} runs</span></div>
+            <div class="table-wrap">
+                {% if last_optimization %}
+                <table><tbody>
+                    <tr><td>Last Run</td><td>{{ last_optimization.timestamp|date:"Y-m-d H:i" }}</td></tr>
+                    <tr><td>Status</td><td><span class="badge {% if 'FAILED' in last_optimization.message %}badge-red{% else %}badge-green{% endif %}">{% if 'FAILED' in last_optimization.message %}FAILED{% else %}COMPLETE{% endif %}</span></td></tr>
+                    <tr><td>Message</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">{{ last_optimization.message|truncatechars:80 }}</td></tr>
+                    <tr><td colspan="2"><small style="color:var(--sec)"><code>python manage.py run_full_optimization --strategy Name --n-trials 20</code></small></td></tr>
+                </tbody></table>
+                {% else %}
+                <div class="empty-state"><p>No optimizations yet</p><div class="empty-hint">Run <code>--strategy Momentum --n-trials 10</code></div></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Live Trading Card -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🔴 Live Trading</span><span class="card-badge badge-gray">API Keys</span></div>
+            <div class="table-wrap">
+                <div class="empty-state">
+                    <p>⚡ Live Trading Ready</p>
+                    <div class="empty-hint">
+                        Set <code>BINANCE_API_KEY</code> and <code>BINANCE_API_SECRET</code> in .env<br>
+                        Set mode='live' in BotConfig, enable, and run:<br>
+                        <code>python manage.py run_live_trading --execute --signal-id 1</code><br>
+                        <br>
+                        <span :class="live.has_api_keys ? 't-grn' : 't-red'" x-text="live.has_api_keys ? '✅ API Keys configured' : '❌ API Keys not configured'"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Log Card -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">📝 Activity</span><span class="card-badge badge-gray" x-text="audit.length + ' entries'">{{ recent_audit|length }} entries</span></div>
+            <div class="table-wrap" style="max-height:300px;overflow-y:auto">
+                <table><thead><tr><th>Time</th><th>Action</th><th>Message</th></tr></thead>
+                <tbody id="audit-body">
+                    {% if recent_audit %}{% for a in recent_audit %}
+                    <tr>
+                        <td style="white-space:nowrap">{{ a.timestamp|date:"H:i" }}</td>
+                        <td><span class="badge {% if a.severity == 'error' or a.severity == 'critical' %}badge-red{% elif a.severity == 'warning' %}badge-yellow{% elif a.action == 'trade_opened' %}badge-green{% elif a.action == 'optimization_run' %}badge-yellow{% else %}badge-gray{% endif %}">{{ a.get_action_display }}</span></td>
+                        <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.message|truncatechars:60 }}</td>
+                    </tr>
+                    {% endfor %}{% else %}
+                    <tr><td colspan="3"><div class="empty-state"><p>No activity</p></div></td></tr>
+                    {% endif %}
+                </tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script>
+// HTMX toast handling
+document.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.failed) {
+        showToast('❌ Request failed: ' + (evt.detail.xhr.responseText || evt.detail.error), 'error');
+    }
+});
+document.addEventListener('htmx:sendError', function() { showToast('❌ Network error', 'error'); });
+document.addEventListener('htmx:timeout', function() { showToast('⏱️ Request timed out', 'error'); });
+
+function showToast(msg, type) {
+    var t = document.getElementById('toast-container');
+    var el = document.createElement('div');
+    el.className = 'toast toast-' + type;
+    el.textContent = msg;
+    t.appendChild(el);
+    setTimeout(function() { el.style.opacity = '0'; el.style.transform = 'translateX(100%)'; el.style.transition = 'all .3s'; setTimeout(function() { el.remove(); }, 300); }, 4000);
+}
+
+// Alpine.js app
+function dashboardApp() {
+    return {
+        stats: { active_strategies: {{ active_strategies }}, active_signals: {{ active_signals }}, open_trades: {{ open_trades }}, total_trades: {{ total_trades }}, total_backtests: {{ total_backtests }}, ohlcv_candles: {{ ohlcv_count }}, total_features: {{ total_features }}, live_params: {{ live_params|length }}, candidate_params: {{ candidate_params|length }}, optimization_runs: {{ optimization_runs }}, win_rate: 0 },
+        paper: { open_trades: 0, open_exposure: 0, total_pnl: 0, win_rate: 0 },
+        live: { has_api_keys: false },
+        audit: [],
+        mode: 'backtest',
+        enabled: false,
+        init() {
+            // Fetch paper trading status
+            fetch('/trading-bot/api/paper-trading/')
+                .then(r => r.json())
+                .then(d => { if (!d.error) { this.paper = d; this.stats.win_rate = d.win_rate || 0; this.mode = d.mode || 'backtest'; this.enabled = d.is_enabled || false; }})
+                .catch(() => {});
+            // Fetch live trading status  
+            fetch('/trading-bot/api/live-trading/')
+                .then(r => r.json())
+                .then(d => { if (!d.error) { this.live = d; }})
+                .catch(() => {});
+            // Periodic refresh
+            setInterval(() => {
+                fetch('/trading-bot/api/stats/')
+                    .then(r => r.json())
+                    .then(d => { if (!d.error) { Object.assign(this.stats, d); }})
+                    .catch(() => {});
+            }, 15000);
+            setInterval(() => {
+                fetch('/trading-bot/api/paper-trading/')
+                    .then(r => r.json())
+                    .then(d => { if (!d.error) { this.paper = d; this.stats.win_rate = d.win_rate || 0; this.mode = d.mode || 'backtest'; this.enabled = d.is_enabled || false; }})
+                    .catch(() => {});
+            }, 20000);
+        }
+    };
+}
+
+// Auto-refresh on page load after any HTMX swap
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    // Re-initialize Alpine components if needed
+});
+</script>
+{% endblock %}

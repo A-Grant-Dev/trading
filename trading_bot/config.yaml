@@ -1,0 +1,125 @@
+# ══════════════════════════════════════════════════════════════════
+#  Autonomous Spot Trading Bot — Configuration
+# ══════════════════════════════════════════════════════════════════
+#  This file overrides BotConfig defaults and provides environment-
+#  aware settings for development, testing, and production.
+#
+#  Environment variables take precedence over this file.
+#  Secrets (API keys) must be set via .env, never in this file.
+# ══════════════════════════════════════════════════════════════════
+
+bot:
+  # Operational mode: backtest | paper | live
+  mode: "backtest"
+  enabled: false
+
+  # Account limits
+  virtual_balance: 10000.0         # Paper trading starting balance (USD)
+  real_balance_limit: 500.0        # Max live balance (USD)
+
+  # Risk management
+  max_open_positions: 5
+  max_position_size_pct: 10.0      # % of balance per trade
+  max_daily_loss_pct: 5.0          # Halt after losing this %
+  max_drawdown_pct: 15.0           # Halt after drawdown exceeds this %
+  kelly_fraction: 0.25             # Quarter Kelly for safety
+
+  # Circuit breaker
+  circuit_breaker_count: 3         # Consecutive losses before trip
+  circuit_breaker_hours: 24        # Cooldown after trip
+
+  # Optimization
+  nightly_optimization_enabled: false
+  min_improvement_threshold: 0.05  # 5% sharpe improvement needed
+  max_trials_per_study: 500
+
+  # Data
+  default_symbol: "BTCUSDT"
+  default_interval: "1h"
+  max_history_days: 730            # 2 years
+
+exchange:
+  # Connection settings
+  timeout_ms: 10000
+  rate_limit_enabled: true
+  retry_attempts: 3
+  retry_delay_seconds: 2.0
+
+  # Testnet
+  use_testnet: false               # Override via BINANCE_USE_TESTNET env
+
+  # Fee model
+  maker_fee_pct: 0.001             # 0.1%
+  taker_fee_pct: 0.001             # 0.1%
+  default_slippage_pct: 0.0005     # 0.05%
+
+strategies:
+  # Default parameters for all strategies
+  momentum:
+    enabled: true
+    ema_fast: "ema_9"
+    ema_slow: "ema_21"
+    rsi_column: "rsi_14"
+    rsi_bull_threshold: 50
+    rsi_bear_threshold: 50
+    confidence_scalar: 0.8
+
+  mean_reversion:
+    enabled: true
+    oversold_threshold: 30
+    overbought_threshold: 70
+    confidence_scalar: 0.7
+
+  breakout:
+    enabled: true
+    volume_threshold: 1.2
+    confidence_scalar: 0.7
+
+  market_regime:
+    enabled: true
+    high_vol_threshold: 2.0
+    low_vol_threshold: 0.5
+    confidence_scalar: 0.7
+
+  onchain_divergence:
+    enabled: true
+    divergence_lookback: 5
+    divergence_threshold: 0.05
+    confidence_scalar: 0.7
+
+  orderbook_imbalance:
+    enabled: false                  # Requires live data
+    imbalance_threshold: 55.0
+
+  absorption:
+    enabled: false                  # Requires live data
+    buy_volume_ratio_threshold: 0.65
+
+  ml_strategy:
+    enabled: false                  # Requires trained model
+
+backtesting:
+  default_initial_capital: 10000.0
+  default_position_size_pct: 10.0
+  default_fee_pct: 0.001
+  default_slippage_pct: 0.0005
+  walk_forward_default_train: 100
+  walk_forward_default_test: 50
+
+optimization:
+  default_n_trials: 50
+  default_n_jobs: 4
+  maximize_metric: "sharpe_ratio"
+  study_storage: null               # null = in-memory, or "sqlite:///studies.db"
+
+logging:
+  level: "INFO"                     # DEBUG | INFO | WARNING | ERROR
+  format: "structured"             # simple | structured | json
+  log_signals: true
+  log_trades: true
+  log_optimization: true
+
+monitoring:
+  # Prometheus metrics
+  metrics_enabled: true
+  dashboard_auto_refresh_seconds: 30

@@ -10,6 +10,7 @@ from .models import (
     QuantConfig,
     TradeRecord,
     TradeSignal,
+    TrainingLog,
 )
 
 
@@ -92,3 +93,14 @@ class QuantConfigAdmin(admin.ModelAdmin):
         "mode", "is_enabled", "virtual_balance", "max_open_positions",
         "kelly_fraction", "updated_at",
     )
+
+
+@admin.register(TrainingLog)
+class TrainingLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "model_type", "symbol", "status", "data_points",
+        "duration_seconds", "started_at",
+    )
+    list_filter = ("model_type", "status", "symbol")
+    date_hierarchy = "started_at"
+    ordering = ("-started_at",)

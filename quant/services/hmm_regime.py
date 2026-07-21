@@ -358,8 +358,9 @@ def build_hmm_features(df: pd.DataFrame) -> pd.DataFrame:
     volume = df["volume"].values.astype(float) if "volume" in df.columns else None
 
     # Log returns
-    df["log_return"] = np.log(close / np.roll(close, 1))
-    df["log_return"].iloc[0] = 0.0
+    log_return = np.full_like(close, 0.0, dtype=float)
+    log_return[1:] = np.log(close[1:] / close[:-1])
+    df["log_return"] = log_return
 
     # Volatility (14-period rolling std of log returns)
     df["volatility_14"] = df["log_return"].rolling(14).std()

@@ -1,0 +1,1 @@
+{"model_names": ["random_forest", "xgboost"], "weights": [1.0, 1.0]}

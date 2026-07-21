@@ -20,7 +20,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-+^r^w90cae!56+@hxmc#v!+l6t(x4w&ckk9%1)$dmg3q70=rhv'
+import os
+from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env')
+
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-+^r^w90cae!56+@hxmc#v!+l6t(x4w&ckk9%1)$dmg3q70=rhv')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -43,6 +47,8 @@ INSTALLED_APPS = [
     'ai_chat',
     'orderbook',
     'quant',
+    'channels',
+    'trading_bot',
 ]
 
 MIDDLEWARE = [
@@ -123,9 +129,18 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # Google Gemini AI API Key
-# Get your free API key at: https://aistudio.google.com/apikey
-import os
-from dotenv import load_dotenv
-load_dotenv(BASE_DIR / '.env')
-
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY', '')
+
+# ── Django Channels (Real-time WebSocket) ──────────────────────────
+ASGI_APPLICATION = 'trading_project.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+
+# ── Binance WebSocket Streams ─────────────────────────────────────
+BINANCE_WS_BASE = 'wss://stream.binance.com:9443/ws'
+BINANCE_FUTURES_WS_BASE = 'wss://fstream.binance.com/ws'
+
